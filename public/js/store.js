@@ -11,7 +11,7 @@
 // ═══════════════════════════════════════════
 const CONFIG = {
   // Your Vercel deployment URL (no trailing slash)
-  API_BASE: 'overlay-maps.vercel.app',
+  API_BASE: 'https://overlay-maps.vercel.app',
 
   // Stripe publishable key (safe to expose in frontend)
   STRIPE_PK: 'pk_live_YOUR_STRIPE_PUBLISHABLE_KEY',
