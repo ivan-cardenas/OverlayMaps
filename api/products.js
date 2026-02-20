@@ -23,14 +23,23 @@ export default async function handler(req, res) {
 }
 
 async function fetchPrintfulCatalog() {
+  const apiKey = process.env.PRINTFUL_API_KEY;
+
+  if (!apiKey) throw new Error('PRINTFUL_API_KEY environment variable is not set');
+
   const headers = {
-    'Authorization': `Bearer ${process.env.PRINTFUL_API_KEY}`,
+    'Authorization': `Bearer ${apiKey}`,
     'Content-Type': 'application/json',
   };
 
   // 1. Get all sync products in the store
   const listRes = await fetch('https://api.printful.com/store/products?limit=100', { headers });
-  if (!listRes.ok) throw new Error(`Printful list error: ${listRes.status}`);
+
+  if (!listRes.ok) {
+    const body = await listRes.text();
+    throw new Error(`Printful list error: ${listRes.status} — ${body}`);
+  }
+
   const { result: productList } = await listRes.json();
 
   // 2. For each product, fetch full details (variants + pricing)
