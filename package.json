@@ -1,0 +1,12 @@
+{
+  "name": "overlaymaps-store-api",
+  "version": "1.0.0",
+  "description": "Serverless API for Overlay Maps store",
+  "dependencies": {
+    "stripe": "^14.0.0",
+    "node-fetch": "^3.3.2"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
