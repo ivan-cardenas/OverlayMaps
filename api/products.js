@@ -75,6 +75,7 @@ async function fetchPrintfulCatalog() {
         .filter(v => v.retail_price != null)  // only skip variants with no price set
         .map(v => ({
           id: v.id,
+          previewUrl: v.files?.find(f => f.type === "preview")?.preview_url || v.files?.[0]?.preview_url || null,
           name: v.name,
           sku: v.sku || '',
           price: parseFloat(v.retail_price),
@@ -91,6 +92,7 @@ async function fetchPrintfulCatalog() {
         id: sync_product.id,
         name: sync_product.name,
         thumbnail: sync_product.thumbnail_url,
+        images: extractProductImages(sync_product, sync_variants),
         category: inferCategory(sync_product.name),
         minPrice: Math.min(...prices),
         maxPrice: Math.max(...prices),
@@ -132,4 +134,32 @@ function groupVariants(variants) {
     groups[key].push(v);
   });
   return groups;
+}
+
+/**
+ * Extract all unique preview images from a product's variants.
+ * Returns array of { variantId, url } — used for image swapping in the UI.
+ */
+function extractProductImages(sync_product, sync_variants) {
+  const seen = new Set();
+  const images = [];
+
+  // Add the main product thumbnail first
+  if (sync_product.thumbnail_url) {
+    seen.add(sync_product.thumbnail_url);
+    images.push({ variantId: null, url: sync_product.thumbnail_url, isDefault: true });
+  }
+
+  // Add per-variant preview images
+  for (const v of sync_variants || []) {
+    const url = v.files?.find(f => f.type === 'preview')?.preview_url
+              || v.files?.[0]?.preview_url
+              || null;
+    if (url && !seen.has(url)) {
+      seen.add(url);
+      images.push({ variantId: v.id, url });
+    }
+  }
+
+  return images;
 }

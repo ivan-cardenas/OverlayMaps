@@ -11,7 +11,7 @@
 // ═══════════════════════════════════════════
 const CONFIG = {
   // Your Vercel deployment URL (no trailing slash)
-  API_BASE: 'https://overlay-maps.vercel.app',
+  API_BASE: 'https://YOUR-PROJECT.vercel.app',
 
   // Stripe publishable key (safe to expose in frontend)
   STRIPE_PK: 'pk_live_YOUR_STRIPE_PUBLISHABLE_KEY',
@@ -193,6 +193,7 @@ function renderVariants(product) {
     // Auto-select the only variant
     if (product.variants.length === 1) {
       selectedVariant = product.variants[0];
+      updateModalImage(selectedVariant);
       updateAddBtn();
     }
     return;
@@ -214,6 +215,9 @@ function renderVariants(product) {
       primaryOpts.querySelectorAll('.variant-opt').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       selectedPrimary = btn.dataset.primary;
+      // Preview the first variant image for this primary group immediately
+      const firstVariant = product.variantGroups[selectedPrimary]?.[0];
+      if (firstVariant) updateModalImage(firstVariant);
       renderSecondaryVariants(product, selectedPrimary);
     });
   });
@@ -240,6 +244,7 @@ function renderSecondaryVariants(product, primaryKey) {
     // Only one variant for this primary — auto-select
     secondarySection.style.display = 'none';
     selectedVariant = variants[0];
+    updateModalImage(selectedVariant);
     updateModalPrice();
     updateAddBtn();
     return;
@@ -261,10 +266,32 @@ function renderSecondaryVariants(product, primaryKey) {
       secondaryOpts.querySelectorAll('.variant-opt').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       selectedVariant = product.variants.find(v => v.id === parseInt(btn.dataset.variantId));
+      updateModalImage(selectedVariant);
       updateModalPrice();
       updateAddBtn();
     });
   });
+}
+
+function updateModalImage(variant) {
+  if (!currentProduct) return;
+  const img = document.getElementById("modalImage");
+
+  // Try to find a variant-specific preview image
+  if (variant && currentProduct.images) {
+    const match = currentProduct.images.find(i => i.variantId === variant.id);
+    if (match) { img.src = match.url; return; }
+
+    // Fallback: find image for same primary option (e.g. same color across sizes)
+    const sameGroup = currentProduct.variants
+      .filter(v => v.options.primary === variant.options.primary)
+      .map(v => v.id);
+    const groupMatch = currentProduct.images.find(i => sameGroup.includes(i.variantId));
+    if (groupMatch) { img.src = groupMatch.url; return; }
+  }
+
+  // Final fallback: product thumbnail
+  img.src = currentProduct.thumbnail || "";
 }
 
 function updateModalPrice() {
