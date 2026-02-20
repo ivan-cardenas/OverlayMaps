@@ -18,19 +18,12 @@ export default async function handler(req, res) {
   const prodRes = await fetch('https://api.printful.com/store/products?limit=5', { headers });
   const prodData = await prodRes.json();
 
-  if (!prodRes.ok) {
-    return res.json({
-      error: `Printful failed (HTTP ${prodRes.status})`,
-      response: prodData,
-      key_preview: key.slice(0, 6) + '...' + key.slice(-4),
-      store_id_used: storeId,
-    });
-  }
 
   return res.json({
     success: true,
     store_id: storeId,
     products_count: prodData.result?.length ?? 0,
-    products: (prodData.result || []).map(p => ({ id: p.id, name: p.name }))
+    products: prodData.result,
+    raw: prodData
   });
 }
