@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Overlay Maps — Geo meets Art</title>
+  <meta name="description" content="Map art prints, t-shirts, stickers and more. Where geography meets art." />
+  <link rel="stylesheet" href="css/store.css" />
+  <!-- Google Fonts: Playfair Display + DM Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+
+<!-- ═══════ HEADER ═══════ -->
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="logo">
+      <span class="logo-mark">◈</span>
+      <span class="logo-text">Overlay Maps</span>
+    </a>
+    <nav class="main-nav">
+      <a href="#apparel">Apparel</a>
+      <a href="#posters">Posters</a>
+      <a href="#stickers">Stickers</a>
+      <a href="#stationary">Stationary</a>
+    </nav>
+    <button class="cart-btn" id="cartToggle" aria-label="Open cart">
+      <span class="cart-icon">◫</span>
+      <span class="cart-count" id="cartCount">0</span>
+    </button>
+  </div>
+</header>
+
+<!-- ═══════ HERO ═══════ -->
+<section class="hero">
+  <div class="hero-grid-bg"></div>
+  <div class="hero-content">
+    <p class="hero-eyebrow">Where Geo meets Art</p>
+    <h1 class="hero-title">Maps<br /><em>your way</em></h1>
+    <p class="hero-sub">Posters, shirts, stickers — all printed on demand.<br />Every map tells a story.</p>
+    <a href="#catalog" class="btn-primary">Shop the collection</a>
+  </div>
+  <div class="hero-visual">
+    <div class="map-lines"></div>
+  </div>
+</section>
+
+<!-- ═══════ FILTER BAR ═══════ -->
+<section class="catalog-header" id="catalog">
+  <div class="filter-bar">
+    <button class="filter-btn active" data-cat="all">All</button>
+    <button class="filter-btn" data-cat="apparel">Apparel</button>
+    <button class="filter-btn" data-cat="posters">Posters</button>
+    <button class="filter-btn" data-cat="stickers">Stickers</button>
+    <button class="filter-btn" data-cat="stationary">Stationary</button>
+  </div>
+  <div class="sort-bar">
+    <span class="product-count" id="productCount">Loading...</span>
+  </div>
+</section>
+
+<!-- ═══════ PRODUCT GRID ═══════ -->
+<main class="product-grid" id="productGrid">
+  <!-- Skeleton loaders while fetching -->
+  <div class="skeleton-card"></div>
+  <div class="skeleton-card"></div>
+  <div class="skeleton-card"></div>
+  <div class="skeleton-card"></div>
+  <div class="skeleton-card"></div>
+  <div class="skeleton-card"></div>
+</main>
+
+<!-- ═══════ PRODUCT MODAL ═══════ -->
+<div class="modal-overlay" id="productModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <button class="modal-close" id="modalClose">✕</button>
+    <div class="modal-image-wrap">
+      <img class="modal-image" id="modalImage" src="" alt="" />
+    </div>
+    <div class="modal-details">
+      <p class="modal-category" id="modalCategory"></p>
+      <h2 class="modal-title" id="modalTitle"></h2>
+      <p class="modal-price" id="modalPrice"></p>
+
+      <!-- Variant selector (size / color / dimension) -->
+      <div class="variant-section" id="variantSection">
+        <label class="variant-label" id="variantLabel">Select option</label>
+        <div class="variant-options" id="variantOptions"></div>
+      </div>
+
+      <!-- Secondary variant (e.g. color after selecting size) -->
+      <div class="variant-section" id="secondarySection" style="display:none">
+        <label class="variant-label" id="secondaryLabel">Color</label>
+        <div class="variant-options" id="secondaryOptions"></div>
+      </div>
+
+      <div class="qty-row">
+        <label class="variant-label">Quantity</label>
+        <div class="qty-control">
+          <button class="qty-btn" id="qtyMinus">−</button>
+          <span class="qty-val" id="qtyVal">1</span>
+          <button class="qty-btn" id="qtyPlus">+</button>
+        </div>
+      </div>
+
+      <button class="btn-primary btn-full" id="addToCartBtn">Add to cart</button>
+      <p class="modal-note">Printed & shipped by Printful • Free returns on defective items</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ CART DRAWER ═══════ -->
+<div class="cart-overlay" id="cartOverlay"></div>
+<aside class="cart-drawer" id="cartDrawer" aria-hidden="true">
+  <div class="cart-header">
+    <h2>Your Cart</h2>
+    <button class="cart-drawer-close" id="cartClose">✕</button>
+  </div>
+  <div class="cart-items" id="cartItems">
+    <p class="cart-empty">Your cart is empty.</p>
+  </div>
+  <div class="cart-footer" id="cartFooter" style="display:none">
+    <div class="cart-total-row">
+      <span>Subtotal</span>
+      <span id="cartTotal">€0.00</span>
+    </div>
+    <p class="cart-shipping-note">Shipping calculated at checkout</p>
+    <button class="btn-primary btn-full" id="checkoutBtn">Checkout →</button>
+  </div>
+</aside>
+
+<!-- ═══════ FOOTER ═══════ -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div>
+      <p class="footer-brand">◈ Overlay Maps</p>
+      <p>Maps where Geo meets Art</p>
+    </div>
+    <div>
+      <p class="footer-heading">Shop</p>
+      <a href="#apparel">Apparel</a>
+      <a href="#posters">Posters</a>
+      <a href="#stickers">Stickers</a>
+    </div>
+    <div>
+      <p class="footer-heading">Info</p>
+      <a href="mailto:hello@overlaymaps.com">Contact</a>
+      <a href="https://www.instagram.com/overlaymaps" target="_blank">Instagram</a>
+    </div>
+  </div>
+  <p class="footer-copy">© 2026 Overlay Maps • Powered by Printful + Stripe</p>
+</footer>
+
+<script src="js/store.js"></script>
+</body>
+</html>
