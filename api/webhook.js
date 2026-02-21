@@ -44,10 +44,8 @@ export default async function handler(req, res) {
   // checkout.session.async_payment_succeeded — delayed payments (iDEAL, SEPA, Bancontact, etc.)
   // Both should trigger Printful order creation
   if (event.type === 'checkout.session.completed') {
-    // Retrieve full session with shipping_details expanded
-    const session = await stripe.checkout.sessions.retrieve(event.data.object.id, {
-      expand: ['shipping_details'],
-    });
+    // Retrieve full session (shipping_details is included by default)
+    const session = await stripe.checkout.sessions.retrieve(event.data.object.id);
 
     if (session.payment_status === 'paid') {
       // Immediate payment — create order now
@@ -65,10 +63,8 @@ export default async function handler(req, res) {
   }
 
   if (event.type === 'checkout.session.async_payment_succeeded') {
-    // Retrieve full session with shipping_details expanded
-    const session = await stripe.checkout.sessions.retrieve(event.data.object.id, {
-      expand: ['shipping_details'],
-    });
+    // Retrieve full session (shipping_details is included by default)
+    const session = await stripe.checkout.sessions.retrieve(event.data.object.id);
     try {
       const orderId = await createPrintfulOrder(session);
       console.log(`Printful order created (async): ${orderId} for Stripe session: ${session.id}`);

@@ -1,39 +1,32 @@
 /**
  * Overlay Maps Store — store.js
- * Handles: catalog fetching, filtering, product modal,
- *          multi-item cart, and Stripe checkout
- *
- * CONFIG: Update API_BASE and STRIPE_PK below before deploying
+ * Features: search, category filter, country filter, sort, pagination, URL state
  */
 
 // ═══════════════════════════════════════════
-// CONFIGURATION — update these!
+// CONFIGURATION
 // ═══════════════════════════════════════════
 const CONFIG = {
-  // Your Vercel deployment URL (no trailing slash)
   API_BASE: 'https://overlay-maps.vercel.app',
-
-  // Stripe publishable key (safe to expose in frontend)
   STRIPE_PK: 'pk_live_51T3JChL50YWJ2vn24GRdCJBcDP0Ggn7mwPUoocxJQZeb1J69H8OYhD5uRYZjsoIKreeWp83oeeUDfj3HFTQS2a7A00mfZUdiy0',
-
-  // Cart storage key
   CART_KEY: 'overlaymaps_cart',
+  PAGE_SIZE: 24,
 };
 
-// ═══════════════════════════════════════════
-// THUMBNAIL OVERRIDES
-// Override the default Printful thumbnail per product ID.
-// Find product IDs at: https://overlay-maps.vercel.app/api/products
-// ═══════════════════════════════════════════
 const THUMBNAIL_OVERRIDES = {
   // 420536143: 'https://your-custom-image-url.jpg',
-  // 420536088: 'https://your-custom-image-url.jpg',
 };
 
-
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
 let allProducts = [];
+let filteredProducts = [];
 let activeCategory = 'all';
 let activeCountry = 'all';
+let activeSearch = '';
+let activeSort = 'default';
+let currentPage = 1;
 let cart = loadCart();
 let currentProduct = null;
 let selectedPrimary = null;
@@ -47,10 +40,13 @@ document.addEventListener('DOMContentLoaded', () => {
   initStripe();
   initCartUI();
   initFilterButtons();
+  initSearch();
+  initSort();
   initModal();
+  initPagination();
+  readURLState();
   fetchProducts();
 
-  // Show cancel message if returning from abandoned checkout
   if (new URLSearchParams(location.search).get('canceled')) {
     showToast('Checkout canceled — your cart is still saved.');
   }
@@ -61,7 +57,47 @@ function initStripe() {
 }
 
 // ═══════════════════════════════════════════
-// FETCH PRODUCTS FROM PRINTFUL (via our API)
+// URL STATE — shareable/bookmarkable filters
+// ═══════════════════════════════════════════
+function readURLState() {
+  const p = new URLSearchParams(location.search);
+  if (p.get('category')) activeCategory = p.get('category');
+  if (p.get('country')) activeCountry = p.get('country');
+  if (p.get('search')) activeSearch = p.get('search');
+  if (p.get('sort')) activeSort = p.get('sort');
+  if (p.get('page')) currentPage = parseInt(p.get('page')) || 1;
+
+  // Sync UI to URL state
+  if (activeSearch) {
+    document.getElementById('searchInput').value = activeSearch;
+    document.getElementById('searchClear').style.display = 'block';
+  }
+  if (activeSort !== 'default') {
+    document.getElementById('sortSelect').value = activeSort;
+  }
+  if (activeCategory !== 'all') {
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.cat === activeCategory);
+    });
+  }
+}
+
+function pushURLState() {
+  const p = new URLSearchParams();
+  if (activeCategory !== 'all') p.set('category', activeCategory);
+  if (activeCountry !== 'all') p.set('country', activeCountry);
+  if (activeSearch) p.set('search', activeSearch);
+  if (activeSort !== 'default') p.set('sort', activeSort);
+  if (currentPage > 1) p.set('page', currentPage);
+
+  const newUrl = p.toString()
+    ? `${location.pathname}?${p.toString()}#catalog`
+    : `${location.pathname}#catalog`;
+  history.pushState({}, '', newUrl);
+}
+
+// ═══════════════════════════════════════════
+// FETCH PRODUCTS
 // ═══════════════════════════════════════════
 async function fetchProducts() {
   try {
@@ -70,62 +106,250 @@ async function fetchProducts() {
     const { products } = await res.json();
     allProducts = products;
     buildCountryFilter(products);
-    renderProducts(products);
+    // Sync country select to URL state
+    if (activeCountry !== 'all') {
+      document.getElementById('countryFilter').value = activeCountry;
+    }
+    applyFiltersAndRender();
   } catch (err) {
     console.error('Failed to load products:', err);
     document.getElementById('productGrid').innerHTML = `
       <p style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:4rem 0">
         Failed to load products. Please refresh the page.
-      </p>
-    `;
+      </p>`;
   }
 }
 
 // ═══════════════════════════════════════════
-// RENDER PRODUCTS
+// FILTER + SORT + SEARCH PIPELINE
 // ═══════════════════════════════════════════
-function renderProducts(products) {
+function applyFiltersAndRender() {
+  let results = [...allProducts];
+
+  // Category filter
+  if (activeCategory !== 'all') {
+    results = results.filter(p => p.category === activeCategory);
+  }
+
+  // Country filter
+  if (activeCountry !== 'all') {
+    results = results.filter(p => p.country === activeCountry);
+  }
+
+  // Search filter
+  if (activeSearch.trim()) {
+    const q = activeSearch.toLowerCase().trim();
+    results = results.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      (p.country && p.country.toLowerCase().includes(q)) ||
+      (p.category && p.category.toLowerCase().includes(q))
+    );
+  }
+
+  // Sort
+  switch (activeSort) {
+    case 'price-asc':  results.sort((a, b) => a.minPrice - b.minPrice); break;
+    case 'price-desc': results.sort((a, b) => b.minPrice - a.minPrice); break;
+    case 'name-asc':   results.sort((a, b) => a.name.localeCompare(b.name)); break;
+    case 'name-desc':  results.sort((a, b) => b.name.localeCompare(a.name)); break;
+  }
+
+  filteredProducts = results;
+
+  // Clamp page
+  const totalPages = Math.ceil(results.length / CONFIG.PAGE_SIZE);
+  if (currentPage > totalPages) currentPage = 1;
+
+  renderPage();
+  renderActiveFilterTags();
+  pushURLState();
+}
+
+// ═══════════════════════════════════════════
+// RENDER PAGE (pagination slice)
+// ═══════════════════════════════════════════
+function renderPage() {
   const grid = document.getElementById('productGrid');
-  const count = document.getElementById('productCount');
+  const countEl = document.getElementById('productCount');
+  const total = filteredProducts.length;
+  const totalPages = Math.ceil(total / CONFIG.PAGE_SIZE);
+  const start = (currentPage - 1) * CONFIG.PAGE_SIZE;
+  const pageItems = filteredProducts.slice(start, start + CONFIG.PAGE_SIZE);
 
-  let filtered = products;
-  if (activeCategory !== 'all') filtered = filtered.filter(p => p.category === activeCategory);
-  if (activeCountry !== 'all') filtered = filtered.filter(p => p.country === activeCountry);
+  countEl.textContent = `${total} product${total !== 1 ? 's' : ''}`;
 
-  count.textContent = `${filtered.length} product${filtered.length !== 1 ? 's' : ''}`;
-
-  if (filtered.length === 0) {
-    grid.innerHTML = `<p style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:4rem 0">No products found.</p>`;
+  if (total === 0) {
+    grid.innerHTML = `<p style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:4rem 0">No products found. <button onclick="clearAllFilters()" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;font-size:inherit">Clear filters</button></p>`;
+    document.getElementById('paginationBar').style.display = 'none';
     return;
   }
 
-  grid.innerHTML = filtered.map(p => {
+  grid.innerHTML = pageItems.map(p => {
     const thumb = THUMBNAIL_OVERRIDES[p.id] || p.thumbnail || '';
     return `
     <article class="product-card" data-id="${p.id}" tabindex="0" role="button" aria-label="${p.name}">
       <div class="product-card-img">
-        <img
-          src="${thumb}"
-          alt="${p.name}"
-          loading="lazy"
-          onerror="this.style.display='none'"
-        />
+        <img src="${thumb}" alt="${p.name}" loading="lazy" onerror="this.style.display='none'" />
       </div>
       <div class="product-card-body">
-        <span class="product-card-cat">
-          ${p.category}${p.country ? ` · ${p.country}` : ''}
-        </span>
-        <h3 class="product-card-name">${p.name}</h3>
-        <div class="product-card-price">
-          From <strong>${formatPrice(p.minPrice, p.currency)}</strong>
-        </div>
+        <span class="product-card-cat">${p.category}${p.country ? ` · ${p.country}` : ''}</span>
+        <h3 class="product-card-name">${highlightSearch(p.name)}</h3>
+        <div class="product-card-price">From <strong>${formatPrice(p.minPrice, p.currency)}</strong></div>
       </div>
-    </article>
-  `}).join('');
+    </article>`;
+  }).join('');
 
   grid.querySelectorAll('.product-card').forEach(card => {
     card.addEventListener('click', () => openModal(parseInt(card.dataset.id)));
     card.addEventListener('keydown', e => { if (e.key === 'Enter') openModal(parseInt(card.dataset.id)); });
+  });
+
+  // Pagination
+  const bar = document.getElementById('paginationBar');
+  if (totalPages <= 1) {
+    bar.style.display = 'none';
+  } else {
+    bar.style.display = 'flex';
+    document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+    document.getElementById('prevPage').disabled = currentPage === 1;
+    document.getElementById('nextPage').disabled = currentPage === totalPages;
+  }
+}
+
+function highlightSearch(name) {
+  if (!activeSearch.trim()) return name;
+  const q = activeSearch.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return name.replace(new RegExp(`(${q})`, 'gi'), '<mark>$1</mark>');
+}
+
+// ═══════════════════════════════════════════
+// ACTIVE FILTER TAGS
+// ═══════════════════════════════════════════
+function renderActiveFilterTags() {
+  const container = document.getElementById('activeFilters');
+  const tags = [];
+
+  if (activeCategory !== 'all') {
+    tags.push(`<button class="filter-tag" onclick="removeCategoryFilter()">
+      ${activeCategory} ✕</button>`);
+  }
+  if (activeCountry !== 'all') {
+    tags.push(`<button class="filter-tag" onclick="removeCountryFilter()">
+      ${activeCountry} ✕</button>`);
+  }
+  if (activeSearch) {
+    tags.push(`<button class="filter-tag" onclick="removeSearchFilter()">
+      "${activeSearch}" ✕</button>`);
+  }
+  if (activeSort !== 'default') {
+    const labels = { 'price-asc': 'Price ↑', 'price-desc': 'Price ↓', 'name-asc': 'A→Z', 'name-desc': 'Z→A' };
+    tags.push(`<button class="filter-tag" onclick="removeSortFilter()">
+      ${labels[activeSort]} ✕</button>`);
+  }
+
+  if (tags.length > 1) {
+    tags.push(`<button class="filter-tag filter-tag-clear" onclick="clearAllFilters()">Clear all</button>`);
+  }
+
+  container.innerHTML = tags.join('');
+}
+
+function removeCategoryFilter() {
+  activeCategory = 'all';
+  currentPage = 1;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === 'all'));
+  applyFiltersAndRender();
+}
+function removeCountryFilter() {
+  activeCountry = 'all';
+  currentPage = 1;
+  document.getElementById('countryFilter').value = 'all';
+  applyFiltersAndRender();
+}
+function removeSearchFilter() {
+  activeSearch = '';
+  currentPage = 1;
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').style.display = 'none';
+  applyFiltersAndRender();
+}
+function removeSortFilter() {
+  activeSort = 'default';
+  document.getElementById('sortSelect').value = 'default';
+  applyFiltersAndRender();
+}
+function clearAllFilters() {
+  activeCategory = 'all';
+  activeCountry = 'all';
+  activeSearch = '';
+  activeSort = 'default';
+  currentPage = 1;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === 'all'));
+  document.getElementById('countryFilter').value = 'all';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').style.display = 'none';
+  document.getElementById('sortSelect').value = 'default';
+  applyFiltersAndRender();
+}
+
+// ═══════════════════════════════════════════
+// SEARCH
+// ═══════════════════════════════════════════
+function initSearch() {
+  const input = document.getElementById('searchInput');
+  const clearBtn = document.getElementById('searchClear');
+  let debounceTimer;
+
+  input.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    const val = input.value;
+    clearBtn.style.display = val ? 'block' : 'none';
+    debounceTimer = setTimeout(() => {
+      activeSearch = val;
+      currentPage = 1;
+      applyFiltersAndRender();
+    }, 250);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    input.value = '';
+    clearBtn.style.display = 'none';
+    activeSearch = '';
+    currentPage = 1;
+    applyFiltersAndRender();
+    input.focus();
+  });
+}
+
+// ═══════════════════════════════════════════
+// SORT
+// ═══════════════════════════════════════════
+function initSort() {
+  document.getElementById('sortSelect').addEventListener('change', e => {
+    activeSort = e.target.value;
+    currentPage = 1;
+    applyFiltersAndRender();
+  });
+}
+
+// ═══════════════════════════════════════════
+// PAGINATION
+// ═══════════════════════════════════════════
+function initPagination() {
+  document.getElementById('prevPage').addEventListener('click', () => {
+    if (currentPage > 1) {
+      currentPage--;
+      applyFiltersAndRender();
+      document.getElementById('catalog').scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+  document.getElementById('nextPage').addEventListener('click', () => {
+    const totalPages = Math.ceil(filteredProducts.length / CONFIG.PAGE_SIZE);
+    if (currentPage < totalPages) {
+      currentPage++;
+      applyFiltersAndRender();
+      document.getElementById('catalog').scrollIntoView({ behavior: 'smooth' });
+    }
   });
 }
 
@@ -138,26 +362,22 @@ function initFilterButtons() {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       activeCategory = btn.dataset.cat;
-      renderProducts(allProducts);
+      currentPage = 1;
+      applyFiltersAndRender();
     });
   });
 }
 
 function buildCountryFilter(products) {
-  // Collect unique countries that actually have products
-  const countries = [...new Set(
-    products.map(p => p.country).filter(Boolean)
-  )].sort();
-
+  const countries = [...new Set(products.map(p => p.country).filter(Boolean))].sort();
   const select = document.getElementById('countryFilter');
   if (!select) return;
-
   select.innerHTML = `<option value="all">All countries</option>`
     + countries.map(c => `<option value="${c}">${c}</option>`).join('');
-
   select.addEventListener('change', () => {
     activeCountry = select.value;
-    renderProducts(allProducts);
+    currentPage = 1;
+    applyFiltersAndRender();
   });
 }
 
@@ -172,10 +392,7 @@ function initModal() {
   document.getElementById('qtyMinus').addEventListener('click', () => setQty(quantity - 1));
   document.getElementById('qtyPlus').addEventListener('click', () => setQty(quantity + 1));
   document.getElementById('addToCartBtn').addEventListener('click', handleAddToCart);
-
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeModal();
-  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 }
 
 function openModal(productId) {
@@ -222,7 +439,6 @@ function renderVariants(product) {
 
   if (groupKeys.length === 0) {
     section.style.display = 'none';
-    // Auto-select the only variant
     if (product.variants.length === 1) {
       selectedVariant = product.variants[0];
       updateModalImage(selectedVariant);
@@ -232,29 +448,25 @@ function renderVariants(product) {
   }
 
   section.style.display = 'block';
-
-  // Determine label: "Size", "Dimensions", etc.
   const firstKey = groupKeys[0];
   const isSizeGroup = /^(xs|s|m|l|xl|xxl|2xl|3xl|\d+x\d+|a\d+|\d+cm)/i.test(firstKey);
   primaryLabel.textContent = isSizeGroup ? 'Size / Dimensions' : 'Option';
 
-  primaryOpts.innerHTML = groupKeys.map(key => `
-    <button class="variant-opt" data-primary="${key}">${key}</button>
-  `).join('');
+  primaryOpts.innerHTML = groupKeys.map(key =>
+    `<button class="variant-opt" data-primary="${key}">${key}</button>`
+  ).join('');
 
   primaryOpts.querySelectorAll('.variant-opt').forEach(btn => {
     btn.addEventListener('click', () => {
       primaryOpts.querySelectorAll('.variant-opt').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       selectedPrimary = btn.dataset.primary;
-      // Preview the first variant image for this primary group immediately
       const firstVariant = product.variantGroups[selectedPrimary]?.[0];
       if (firstVariant) updateModalImage(firstVariant);
       renderSecondaryVariants(product, selectedPrimary);
     });
   });
 
-  // If only one primary group, auto-select it
   if (groupKeys.length === 1) {
     primaryOpts.querySelector('.variant-opt').click();
   }
@@ -269,11 +481,9 @@ function renderSecondaryVariants(product, primaryKey) {
   selectedVariant = null;
   updateAddBtn();
 
-  // Check if variants have a secondary option (e.g. color)
   const hasSecondary = variants.some(v => v.options.secondary);
 
   if (!hasSecondary) {
-    // Only one variant for this primary — auto-select
     secondarySection.style.display = 'none';
     selectedVariant = variants[0];
     updateModalImage(selectedVariant);
@@ -307,23 +517,16 @@ function renderSecondaryVariants(product, primaryKey) {
 
 function updateModalImage(variant) {
   if (!currentProduct) return;
-  const img = document.getElementById("modalImage");
-
-  // Try to find a variant-specific preview image
+  const img = document.getElementById('modalImage');
   if (variant && currentProduct.images) {
     const match = currentProduct.images.find(i => i.variantId === variant.id);
     if (match) { img.src = match.url; return; }
-
-    // Fallback: find image for same primary option (e.g. same color across sizes)
     const sameGroup = currentProduct.variants
-      .filter(v => v.options.primary === variant.options.primary)
-      .map(v => v.id);
+      .filter(v => v.options.primary === variant.options.primary).map(v => v.id);
     const groupMatch = currentProduct.images.find(i => sameGroup.includes(i.variantId));
     if (groupMatch) { img.src = groupMatch.url; return; }
   }
-
-  // Final fallback: product thumbnail
-  img.src = currentProduct.thumbnail || "";
+  img.src = THUMBNAIL_OVERRIDES[currentProduct.id] || currentProduct.thumbnail || '';
 }
 
 function updateModalPrice() {
@@ -336,7 +539,9 @@ function updateModalPrice() {
 function updateAddBtn() {
   const btn = document.getElementById('addToCartBtn');
   btn.disabled = !selectedVariant;
-  btn.textContent = selectedVariant ? `Add to cart — ${formatPrice(selectedVariant.price * quantity, selectedVariant.currency)}` : 'Select options';
+  btn.textContent = selectedVariant
+    ? `Add to cart — ${formatPrice(selectedVariant.price * quantity, selectedVariant.currency)}`
+    : 'Select options';
 }
 
 function setQty(n) {
@@ -347,17 +552,15 @@ function setQty(n) {
 
 function handleAddToCart() {
   if (!selectedVariant || !currentProduct) return;
-
   addToCart({
     variantId: selectedVariant.id,
     name: currentProduct.name,
     variantLabel: [selectedPrimary, selectedVariant.options?.secondary].filter(Boolean).join(' / '),
     price: selectedVariant.price,
     currency: selectedVariant.currency,
-    thumbnail: currentProduct.thumbnail,
+    thumbnail: THUMBNAIL_OVERRIDES[currentProduct.id] || currentProduct.thumbnail,
     quantity,
   });
-
   closeModal();
   openCart();
   showToast('Added to cart!');
@@ -367,11 +570,8 @@ function handleAddToCart() {
 // CART
 // ═══════════════════════════════════════════
 function loadCart() {
-  try {
-    return JSON.parse(localStorage.getItem(CONFIG.CART_KEY)) || [];
-  } catch {
-    return [];
-  }
+  try { return JSON.parse(localStorage.getItem(CONFIG.CART_KEY)) || []; }
+  catch { return []; }
 }
 
 function saveCart() {
@@ -379,7 +579,6 @@ function saveCart() {
 }
 
 function addToCart(item) {
-  // Check if same variant already in cart
   const existing = cart.find(i => i.variantId === item.variantId);
   if (existing) {
     existing.quantity = Math.min(20, existing.quantity + item.quantity);
@@ -411,16 +610,12 @@ function renderCart() {
 
   container.innerHTML = cart.map(item => `
     <div class="cart-item">
-      <img class="cart-item-img"
-           src="${item.thumbnail || ''}"
-           alt="${item.name}"
+      <img class="cart-item-img" src="${item.thumbnail || ''}" alt="${item.name}"
            onerror="this.style.display='none'" />
       <div>
         <div class="cart-item-name">${item.name}</div>
         ${item.variantLabel ? `<div class="cart-item-variant">${item.variantLabel}</div>` : ''}
-        <div class="cart-item-price">
-          ${item.quantity} × ${formatPrice(item.price, item.currency)}
-        </div>
+        <div class="cart-item-price">${item.quantity} × ${formatPrice(item.price, item.currency)}</div>
       </div>
       <button class="cart-item-remove" data-variant="${item.variantId}" aria-label="Remove">✕</button>
     </div>
@@ -430,11 +625,9 @@ function renderCart() {
     btn.addEventListener('click', () => removeFromCart(parseInt(btn.dataset.variant)));
   });
 
-  // Calculate total (assumes single currency — if mixed, use first item's)
   const currency = cart[0]?.currency || 'EUR';
   const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
   totalEl.textContent = formatPrice(total, currency);
-
   footer.style.display = 'flex';
 }
 
@@ -450,7 +643,6 @@ function initCartUI() {
   document.getElementById('cartClose').addEventListener('click', closeCart);
   document.getElementById('cartOverlay').addEventListener('click', closeCart);
   document.getElementById('checkoutBtn').addEventListener('click', handleCheckout);
-
   renderCart();
   updateCartCount();
 }
@@ -472,7 +664,6 @@ function closeCart() {
 // ═══════════════════════════════════════════
 async function handleCheckout() {
   if (cart.length === 0) return;
-
   const btn = document.getElementById('checkoutBtn');
   btn.disabled = true;
   btn.textContent = 'Loading...';
@@ -483,15 +674,11 @@ async function handleCheckout() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items: cart }),
     });
-
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.error || 'Checkout failed');
     }
-
     const { sessionId, url } = await res.json();
-
-    // Redirect to Stripe hosted checkout
     if (url) {
       window.location.href = url;
     } else {
@@ -525,9 +712,8 @@ function showToast(msg) {
     toast.style.cssText = `
       position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);
       background:var(--surface-2);border:1px solid var(--accent);color:var(--white);
-      padding:0.75rem 1.5rem;border-radius:4px;z-index:999;
-      font-family:var(--font-mono);font-size:13px;
-      transition:opacity 0.3s;
+      padding:0.75rem 1.5rem;border-radius:4px;z-index:9999;
+      font-family:var(--font-mono);font-size:13px;transition:opacity 0.3s;
     `;
     document.body.appendChild(toast);
   }
