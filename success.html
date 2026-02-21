@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Confirmed — Overlay Maps</title>
+  <link rel="stylesheet" href="css/store.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="logo">
+      <span class="logo-mark">◈</span>
+      <span class="logo-text">Overlay Maps</span>
+    </a>
+  </div>
+</header>
+
+<main class="success-page">
+  <div class="success-box">
+    <div class="success-icon">◈</div>
+    <h1>Order Confirmed!</h1>
+    <p>Thank you for your order. We've sent the details to Printful and your items will be in production shortly.</p>
+    <p>You'll receive a shipping confirmation email once your order is on its way.</p>
+    <a href="index.html" class="btn-primary" style="margin-top:2rem;display:inline-block">Back to shop</a>
+  </div>
+</main>
+
+<script>
+  // Clear cart on successful payment
+  localStorage.removeItem('overlaymaps_cart');
+</script>
+</body>
+</html>
