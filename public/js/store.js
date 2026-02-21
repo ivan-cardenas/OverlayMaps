@@ -504,3 +504,9 @@ function showToast(msg) {
   clearTimeout(toast._timer);
   toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
 }
+
+// Track add to cart
+window.va?.('event', { name: 'add_to_cart', data: { product: item.name } });
+
+// Track checkout start  
+window.va?.('event', { name: 'checkout_started', data: { total: cart.length } });
