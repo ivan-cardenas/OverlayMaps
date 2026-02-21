@@ -40,24 +40,42 @@ export default async function handler(req, res) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Only handle completed payments
+  // checkout.session.completed — immediate payments (card, Apple Pay, etc.)
+  // checkout.session.async_payment_succeeded — delayed payments (iDEAL, SEPA, Bancontact, etc.)
+  // Both should trigger Printful order creation
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
 
-    // Don't process if payment is still pending (e.g. bank transfer)
-    if (session.payment_status !== 'paid') {
-      console.log(`Session ${session.id} payment_status is ${session.payment_status} — skipping`);
-      return res.status(200).json({ received: true });
+    if (session.payment_status === 'paid') {
+      // Immediate payment — create order now
+      try {
+        const orderId = await createPrintfulOrder(session);
+        console.log(`Printful order created: ${orderId} for Stripe session: ${session.id}`);
+      } catch (err) {
+        console.error('Failed to create Printful order:', err);
+      }
+    } else {
+      // payment_status === 'unpaid' — delayed method (iDEAL, SEPA, etc.)
+      // Wait for async_payment_succeeded before creating the order
+      console.log(`Session ${session.id} payment pending (${session.payment_status}) — awaiting async confirmation`);
     }
+  }
 
+  if (event.type === 'checkout.session.async_payment_succeeded') {
+    // Delayed payment method (iDEAL, SEPA Direct Debit, Bancontact) has now succeeded
+    const session = event.data.object;
     try {
       const orderId = await createPrintfulOrder(session);
-      console.log(`Printful order created: ${orderId} for Stripe session: ${session.id}`);
+      console.log(`Printful order created (async): ${orderId} for Stripe session: ${session.id}`);
     } catch (err) {
-      console.error('Failed to create Printful order:', err);
-      // Return 200 to Stripe so it doesn't retry — handle failure notification separately
-      // In production, send yourself an email alert here
+      console.error('Failed to create Printful order (async):', err);
     }
+  }
+
+  if (event.type === 'checkout.session.async_payment_failed') {
+    // Delayed payment failed — log it (you could notify the customer here)
+    const session = event.data.object;
+    console.error(`Async payment failed for session: ${session.id}, customer: ${session.customer_details?.email}`);
   }
 
   return res.status(200).json({ received: true });

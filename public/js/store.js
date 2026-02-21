@@ -14,7 +14,7 @@ const CONFIG = {
   API_BASE: 'https://overlay-maps.vercel.app',
 
   // Stripe publishable key (safe to expose in frontend)
-  STRIPE_PK: 'pk_live_YOUR_STRIPE_PUBLISHABLE_KEY',
+  STRIPE_PK: 'pk_live_51T3JChL50YWJ2vn24GRdCJBcDP0Ggn7mwPUoocxJQZeb1J69H8OYhD5uRYZjsoIKreeWp83oeeUDfj3HFTQS2a7A00mfZUdiy0',
 
   // Cart storage key
   CART_KEY: 'overlaymaps_cart',

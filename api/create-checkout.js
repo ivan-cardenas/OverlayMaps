@@ -69,7 +69,10 @@ export default async function handler(req, res) {
     const storeUrl = process.env.STORE_URL || 'https://overlaymaps.com';
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
+      // Let Stripe automatically present the best payment methods for each customer
+      // based on their country, currency, and Stripe Dashboard settings.
+      // This gives EU customers iDEAL, Bancontact, SEPA Direct Debit, etc. automatically.
+      // (Remove `payment_method_types` entirely to use automatic_payment_methods behavior)
       line_items: lineItems,
       mode: 'payment',
 
