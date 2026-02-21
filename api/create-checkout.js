@@ -89,7 +89,7 @@ export default async function handler(req, res) {
 
       // Redirect URLs
       success_url: `${storeUrl}/success.html?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${storeUrl}/index.html?canceled=1`,
+      cancel_url: `${storeUrl}/?canceled=1`,
 
       // Allow promo codes if you want them in Stripe
       // allow_promotion_codes: true,
