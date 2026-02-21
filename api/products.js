@@ -94,6 +94,7 @@ async function fetchPrintfulCatalog() {
         thumbnail: sync_product.thumbnail_url,
         images: extractProductImages(sync_product, sync_variants),
         category: inferCategory(sync_product.name),
+        country: inferCountry(sync_product.name),
         minPrice: Math.min(...prices),
         maxPrice: Math.max(...prices),
         currency: variants[0]?.currency || 'EUR',
@@ -113,6 +114,45 @@ function inferCategory(name) {
   if (lower.includes('sticker')) return 'stickers';
   if (lower.includes('notebook') || lower.includes('stationary') || lower.includes('mug') || lower.includes('tote')) return 'stationary';
   return 'other';
+}
+
+// Known countries/regions — add more as you expand your catalog
+const KNOWN_COUNTRIES = [
+  // Americas
+  'Argentina', 'Bolivia', 'Brasil', 'Brazil', 'Canada', 'Chile', 'Colombia',
+  'Costa Rica', 'Cuba', 'Ecuador', 'Guatemala', 'Mexico', 'Panama', 'Paraguay',
+  'Peru', 'Uruguay', 'Venezuela', 'United States', 'USA',
+  // Europe
+  'Albania', 'Austria', 'Belgium', 'Bosnia', 'Bulgaria', 'Catalunya', 'Croatia',
+  'Cyprus', 'Czechia', 'Denmark', 'Estonia', 'Finland', 'France', 'Germany',
+  'Greece', 'Hungary', 'Iceland', 'Ireland', 'Italy', 'Kosovo', 'Latvia',
+  'Lithuania', 'Luxembourg', 'Malta', 'Moldova', 'Montenegro', 'Netherlands',
+  'North Macedonia', 'Norway', 'Poland', 'Portugal', 'Romania', 'Serbia',
+  'Slovakia', 'Slovenia', 'Spain', 'Sweden', 'Switzerland', 'Ukraine',
+  'United Kingdom', 'UK',
+  // Asia & Middle East
+  'Afghanistan', 'China', 'India', 'Indonesia', 'Iran', 'Iraq', 'Israel',
+  'Japan', 'Jordan', 'Kazakhstan', 'South Korea', 'Lebanon', 'Malaysia',
+  'Mongolia', 'Myanmar', 'Nepal', 'Pakistan', 'Philippines', 'Saudi Arabia',
+  'Singapore', 'Sri Lanka', 'Syria', 'Taiwan', 'Thailand', 'Turkey',
+  'Vietnam', 'Yemen', 'Isfahan',
+  // Africa
+  'Algeria', 'Angola', 'Cameroon', 'Congo', 'Egypt', 'Ethiopia', 'Ghana',
+  'Kenya', 'Libya', 'Morocco', 'Mozambique', 'Nigeria', 'Senegal',
+  'South Africa', 'Sudan', 'Tanzania', 'Tunisia', 'Uganda', 'Zimbabwe',
+  // Oceania
+  'Australia', 'New Zealand',
+  // World
+  'World',
+];
+
+function inferCountry(name) {
+  for (const country of KNOWN_COUNTRIES) {
+    if (name.toLowerCase().includes(country.toLowerCase())) {
+      return country;
+    }
+  }
+  return null;
 }
 
 function parseVariantName(variantName, productName) {

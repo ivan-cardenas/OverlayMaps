@@ -58,6 +58,10 @@
     <button class="filter-btn" data-cat="stationary">Stationary</button>
   </div>
   <div class="sort-bar">
+    <select id="countryFilter" class="country-select">
+      <option value="all">All countries</option>
+      <!-- populated dynamically by store.js -->
+    </select>
     <span class="product-count" id="productCount">Loading...</span>
   </div>
 </section>
@@ -156,6 +160,7 @@
 
 <script src="js/store.js"></script>
 <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
+<script defer src="https://cdn.vercel-insights.com/v1/speed-insights.js"></script>
 
 </body>
 </html>

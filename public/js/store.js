@@ -11,7 +11,7 @@
 // ═══════════════════════════════════════════
 const CONFIG = {
   // Your Vercel deployment URL (no trailing slash)
-  API_BASE: 'https://overlay-maps.vercel.app',
+  API_BASE: 'https://YOUR-PROJECT.vercel.app',
 
   // Stripe publishable key (safe to expose in frontend)
   STRIPE_PK: 'pk_live_YOUR_STRIPE_PUBLISHABLE_KEY',
@@ -21,10 +21,19 @@ const CONFIG = {
 };
 
 // ═══════════════════════════════════════════
-// STATE
+// THUMBNAIL OVERRIDES
+// Override the default Printful thumbnail per product ID.
+// Find product IDs at: https://overlay-maps.vercel.app/api/products
 // ═══════════════════════════════════════════
+const THUMBNAIL_OVERRIDES = {
+  // 420536143: 'https://your-custom-image-url.jpg',
+  // 420536088: 'https://your-custom-image-url.jpg',
+};
+
+
 let allProducts = [];
 let activeCategory = 'all';
+let activeCountry = 'all';
 let cart = loadCart();
 let currentProduct = null;
 let selectedPrimary = null;
@@ -60,6 +69,7 @@ async function fetchProducts() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { products } = await res.json();
     allProducts = products;
+    buildCountryFilter(products);
     renderProducts(products);
   } catch (err) {
     console.error('Failed to load products:', err);
@@ -78,38 +88,41 @@ function renderProducts(products) {
   const grid = document.getElementById('productGrid');
   const count = document.getElementById('productCount');
 
-  const filtered = activeCategory === 'all'
-    ? products
-    : products.filter(p => p.category === activeCategory);
+  let filtered = products;
+  if (activeCategory !== 'all') filtered = filtered.filter(p => p.category === activeCategory);
+  if (activeCountry !== 'all') filtered = filtered.filter(p => p.country === activeCountry);
 
   count.textContent = `${filtered.length} product${filtered.length !== 1 ? 's' : ''}`;
 
   if (filtered.length === 0) {
-    grid.innerHTML = `<p style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:4rem 0">No products in this category yet.</p>`;
+    grid.innerHTML = `<p style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:4rem 0">No products found.</p>`;
     return;
   }
 
-  grid.innerHTML = filtered.map(p => `
+  grid.innerHTML = filtered.map(p => {
+    const thumb = THUMBNAIL_OVERRIDES[p.id] || p.thumbnail || '';
+    return `
     <article class="product-card" data-id="${p.id}" tabindex="0" role="button" aria-label="${p.name}">
       <div class="product-card-img">
         <img
-          src="${p.thumbnail || ''}"
+          src="${thumb}"
           alt="${p.name}"
           loading="lazy"
           onerror="this.style.display='none'"
         />
       </div>
       <div class="product-card-body">
-        <span class="product-card-cat">${p.category}</span>
+        <span class="product-card-cat">
+          ${p.category}${p.country ? ` · ${p.country}` : ''}
+        </span>
         <h3 class="product-card-name">${p.name}</h3>
         <div class="product-card-price">
           From <strong>${formatPrice(p.minPrice, p.currency)}</strong>
         </div>
       </div>
     </article>
-  `).join('');
+  `}).join('');
 
-  // Bind click handlers
   grid.querySelectorAll('.product-card').forEach(card => {
     card.addEventListener('click', () => openModal(parseInt(card.dataset.id)));
     card.addEventListener('keydown', e => { if (e.key === 'Enter') openModal(parseInt(card.dataset.id)); });
@@ -127,6 +140,24 @@ function initFilterButtons() {
       activeCategory = btn.dataset.cat;
       renderProducts(allProducts);
     });
+  });
+}
+
+function buildCountryFilter(products) {
+  // Collect unique countries that actually have products
+  const countries = [...new Set(
+    products.map(p => p.country).filter(Boolean)
+  )].sort();
+
+  const select = document.getElementById('countryFilter');
+  if (!select) return;
+
+  select.innerHTML = `<option value="all">All countries</option>`
+    + countries.map(c => `<option value="${c}">${c}</option>`).join('');
+
+  select.addEventListener('change', () => {
+    activeCountry = select.value;
+    renderProducts(allProducts);
   });
 }
 
@@ -156,7 +187,8 @@ function openModal(productId) {
   selectedVariant = null;
   quantity = 1;
 
-  document.getElementById('modalImage').src = product.thumbnail || '';
+  const thumb = THUMBNAIL_OVERRIDES[product.id] || product.thumbnail || '';
+  document.getElementById('modalImage').src = thumb;
   document.getElementById('modalImage').alt = product.name;
   document.getElementById('modalCategory').textContent = product.category;
   document.getElementById('modalTitle').textContent = product.name;
@@ -504,9 +536,3 @@ function showToast(msg) {
   clearTimeout(toast._timer);
   toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
 }
-
-// Track add to cart
-window.va?.('event', { name: 'add_to_cart', data: { product: item.name } });
-
-// Track checkout start  
-window.va?.('event', { name: 'checkout_started', data: { total: cart.length } });
