@@ -93,6 +93,25 @@ async function createPrintfulOrder(session) {
     throw new Error('No shipping address in session');
   }
 
+  // Generate a unique external_id (max 64 chars)
+  const externalId = `stripe_${session.id.slice(-50)}`;
+
+  // Check if order already exists (prevents duplicates from webhook retries)
+  const existingCheck = await fetch(
+    `https://api.printful.com/orders/@${externalId}`,
+    {
+      headers: {
+        'Authorization': `Bearer ${process.env.PRINTFUL_API_KEY}`,
+      },
+    }
+  );
+  
+  if (existingCheck.ok) {
+    const existing = await existingCheck.json();
+    console.log(`Order already exists: ${existing.result.id}`);
+    return existing.result.id;
+  }
+
   // Parse cart from metadata
   let cartItems;
   try {
@@ -101,10 +120,11 @@ async function createPrintfulOrder(session) {
     throw new Error('Could not parse cart metadata');
   }
 
+
   // Build Printful order payload
   const order = {
     // Use the Stripe session ID as the external reference
-    external_id: session.id,
+    external_id: `stripe_${session.id.slice(-50)}`,
 
     recipient: {
       name: shipping.name || customer.name,
