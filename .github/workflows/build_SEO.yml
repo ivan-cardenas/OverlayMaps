@@ -1,0 +1,41 @@
+name: Build SEO Pages
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Re-generate every Sunday at 2am to pick up new Printful products
+    - cron: '0 2 * * 0'
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  build-seo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate SEO product pages
+        run: npm run build:seo
+        env:
+          # These are only needed if build-seo.js calls Printful directly
+          # If it calls your Vercel API, no secrets are needed here
+          PRINTFUL_API_KEY: ${{ secrets.PRINTFUL_API_KEY }}
+
+      - name: Commit generated pages
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Actions"
+          git add public/products/ public/sitemap.xml public/robots.txt
+          git diff --staged --quiet || git commit -m "chore: regenerate SEO product pages [skip ci]"
+          git push
