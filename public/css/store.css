@@ -822,6 +822,106 @@ mark {
   text-align: center;
 }
 
+/* ═══ SHIPPING ESTIMATOR ═══ */
+.cart-shipping-estimator {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.shipping-input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.shipping-input-row .country-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.shipping-calc-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--white);
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--transition);
+}
+.shipping-calc-btn:hover { border-color: var(--accent); }
+.shipping-calc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.shipping-rates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.shipping-rate-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color var(--transition);
+  font-size: 13px;
+}
+.shipping-rate-option:has(input:checked) {
+  border-color: var(--accent);
+}
+.shipping-rate-option input[type="radio"] {
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.shipping-rate-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+}
+
+.shipping-rate-name {
+  color: var(--white);
+  font-size: 13px;
+}
+
+.shipping-rate-days {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.shipping-rate-price {
+  color: var(--white);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.shipping-loading,
+.shipping-error {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  padding: 0.4rem 0;
+}
+.shipping-loading { color: var(--text-muted); }
+.shipping-error { color: #e05555; }
+
+.cart-grand-total {
+  font-size: 16px;
+  padding-top: 0.25rem;
+}
+
 /* ═══ SUCCESS PAGE ═══ */
 .success-page {
   min-height: calc(100vh - 60px);

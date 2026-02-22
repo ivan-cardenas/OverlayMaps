@@ -123,6 +123,9 @@ async function createPrintfulOrder(session) {
       quantity: item.quantity,
     })),
 
+    // Use the shipping method the customer selected during cart checkout
+    ...(session.metadata.shipping_id && { shipping: session.metadata.shipping_id }),
+
     // Optional: set retail costs for proper packing slips
     retail_costs: {
       currency: session.currency?.toUpperCase() || 'EUR',

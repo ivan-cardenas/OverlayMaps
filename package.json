@@ -2,6 +2,10 @@
   "name": "overlaymaps-store-api",
   "version": "1.0.0",
   "description": "Serverless API for Overlay Maps store",
+  "type": "module",
+  "scripts": {
+    "build:seo": "node scripts/build-seo.js"
+  },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",
     "node-fetch": "^3.3.2",

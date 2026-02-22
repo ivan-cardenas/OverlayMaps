@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { items } = req.body;
+  const { items, shippingOption } = req.body;
 
   if (!items || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'Cart is empty' });
@@ -64,15 +64,30 @@ export default async function handler(req, res) {
           quantity: i.quantity,
         }))
       ),
+      ...(shippingOption?.id && { shipping_id: shippingOption.id }),
     };
+
+    // Build Stripe shipping option if the customer pre-selected one
+    const shipping_options = shippingOption?.rate != null ? [{
+      shipping_rate_data: {
+        type: 'fixed_amount',
+        fixed_amount: {
+          amount: Math.round(shippingOption.rate * 100),
+          currency: (shippingOption.currency || 'EUR').toLowerCase(),
+        },
+        display_name: shippingOption.name,
+        ...(shippingOption.minDays && {
+          delivery_estimate: {
+            minimum: { unit: 'business_day', value: shippingOption.minDays },
+            maximum: { unit: 'business_day', value: shippingOption.maxDays || shippingOption.minDays },
+          },
+        }),
+      },
+    }] : undefined;
 
     const storeUrl = process.env.STORE_URL || 'https://overlaymaps.com';
 
     const session = await stripe.checkout.sessions.create({
-      // Let Stripe automatically present the best payment methods for each customer
-      // based on their country, currency, and Stripe Dashboard settings.
-      // This gives EU customers iDEAL, Bancontact, SEPA Direct Debit, etc. automatically.
-      // (Remove `payment_method_types` entirely to use automatic_payment_methods behavior)
       line_items: lineItems,
       mode: 'payment',
 
@@ -80,6 +95,9 @@ export default async function handler(req, res) {
       shipping_address_collection: {
         allowed_countries: SHIPPING_COUNTRIES,
       },
+
+      // Pre-calculated shipping option (if customer estimated it in cart)
+      ...(shipping_options && { shipping_options }),
 
       // Collect phone for Printful (sometimes required for customs)
       phone_number_collection: { enabled: true },
@@ -90,9 +108,6 @@ export default async function handler(req, res) {
       // Redirect URLs
       success_url: `${storeUrl}/success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${storeUrl}/?canceled=1`,
-
-      // Allow promo codes if you want them in Stripe
-      // allow_promotion_codes: true,
     });
 
     return res.status(200).json({ sessionId: session.id, url: session.url });

@@ -409,7 +409,7 @@ function renderCart() {
     footer.style.display = 'none';
     return;
   }
-  container.innerHTML = cart.map(item => '<div class="cart-item"><img class="cart-item-img" src="' + (item.thumbnail||'') + '" alt="' + item.name + '" onerror="this.style.display='none'" /><div><div class="cart-item-name">' + item.name + '</div>' + (item.variantLabel ? '<div class="cart-item-variant">' + item.variantLabel + '</div>' : '') + '<div class="cart-item-price">' + item.quantity + ' × ' + formatPrice(item.price, item.currency) + '</div></div><button class="cart-item-remove" data-variant="' + item.variantId + '">✕</button></div>').join('');
+  container.innerHTML = cart.map(item => '<div class="cart-item"><img class="cart-item-img" src="' + (item.thumbnail||'') + '" alt="' + item.name + '" onerror="this.hidden=true" /><div><div class="cart-item-name">' + item.name + '</div>' + (item.variantLabel ? '<div class="cart-item-variant">' + item.variantLabel + '</div>' : '') + '<div class="cart-item-price">' + item.quantity + ' × ' + formatPrice(item.price, item.currency) + '</div></div><button class="cart-item-remove" data-variant="' + item.variantId + '">✕</button></div>').join('');
   container.querySelectorAll('.cart-item-remove').forEach(btn => {
     btn.addEventListener('click', () => {
       cart = cart.filter(i => i.variantId !== parseInt(btn.dataset.variant));
