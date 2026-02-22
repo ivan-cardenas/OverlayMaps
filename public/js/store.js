@@ -106,6 +106,7 @@ async function fetchProducts() {
     const { products } = await res.json();
     allProducts = products;
     buildCountryFilter(products);
+    populateNavDropdown(products);
     // Sync country select to URL state
     if (activeCountry !== 'all') {
       document.getElementById('countryFilter').value = activeCountry;
@@ -788,4 +789,54 @@ function showToast(msg) {
   toast.style.opacity = '1';
   clearTimeout(toast._timer);
   toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+}
+
+// ═══════════════════════════════════════════
+// NAV PRODUCTS DROPDOWN
+// ═══════════════════════════════════════════
+function slugify(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .substring(0, 80);
+}
+
+function populateNavDropdown(products) {
+  const menu = document.getElementById('navProductsMenu');
+  const btn = document.getElementById('navProductsBtn');
+  if (!menu || !btn) return;
+
+  // Group products by category
+  const categories = {};
+  products.forEach(p => {
+    const cat = p.category || 'other';
+    if (!categories[cat]) categories[cat] = [];
+    categories[cat].push(p);
+  });
+
+  let html = '';
+  Object.entries(categories).forEach(([cat, items]) => {
+    html += `<div class="nav-dropdown-heading">${cat.charAt(0).toUpperCase() + cat.slice(1)}</div>`;
+    items.forEach(p => {
+      html += `<a class="nav-dropdown-item" href="/products/${slugify(p.name)}/">${p.name}</a>`;
+    });
+  });
+  menu.innerHTML = html;
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = menu.classList.contains('open');
+    menu.classList.toggle('open', !isOpen);
+    btn.setAttribute('aria-expanded', String(!isOpen));
+    menu.setAttribute('aria-hidden', String(isOpen));
+  });
+
+  document.addEventListener('click', () => {
+    menu.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+    menu.setAttribute('aria-hidden', 'true');
+  });
 }

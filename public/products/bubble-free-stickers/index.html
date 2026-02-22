@@ -218,6 +218,13 @@ let selectedVariant = null;
 let quantity = 1;
 let cart = loadCart();
 
+// Expose setMainImage globally so onclick handlers can call it
+window.setMainImage = function(url, btn) {
+  document.getElementById('mainProductImage').src = url;
+  document.querySelectorAll('.product-thumb-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+};
+
 initPage();
 initCartUI();
 
