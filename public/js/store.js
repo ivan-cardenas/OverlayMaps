@@ -702,6 +702,12 @@ function renderCart() {
   totalEl.textContent = formatPrice(subtotal, currency);
   footer.style.display = 'flex';
   updateShippingDisplay();
+
+  const checkoutBtn = document.getElementById('checkoutBtn');
+    if (checkoutBtn) {
+      checkoutBtn.disabled = !selectedShippingOption;
+      checkoutBtn.textContent = selectedShippingOption ? 'Checkout →' : 'Select shipping first';
+    }
 }
 
 function updateCartCount() {
@@ -738,6 +744,14 @@ function closeCart() {
 // ═══════════════════════════════════════════
 async function handleCheckout() {
   if (cart.length === 0) return;
+  
+  // Require shipping selection
+  if (!selectedShippingOption) {
+    showToast('Please calculate and select a shipping option first');
+    document.getElementById('shippingCountrySelect')?.focus();
+    return;
+  }
+
   const btn = document.getElementById('checkoutBtn');
   btn.disabled = true;
   btn.textContent = 'Loading...';
@@ -840,7 +854,11 @@ async function calcShipping() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         country_code: country,
-        items: cart.map(i => ({ variantId: i.variantId, quantity: i.quantity })),
+        items: cart.map(i => ({ 
+  variantId: i.variantId, 
+  catalogVariantId: i.catalogVariantId,
+  quantity: i.quantity 
+})),
       }),
     });
     const { rates, error } = await res.json();
@@ -907,6 +925,12 @@ function updateShippingDisplay() {
     shippingRow.style.display = 'none';
     grandTotalRow.style.display = 'none';
     if (shippingNote) shippingNote.style.display = 'block';
+  }
+
+  const checkoutBtn = document.getElementById('checkoutBtn');
+  if (checkoutBtn) {
+    checkoutBtn.disabled = !selectedShippingOption || cart.length === 0;
+    checkoutBtn.textContent = selectedShippingOption ? 'Checkout →' : 'Select shipping first';
   }
 }
 
