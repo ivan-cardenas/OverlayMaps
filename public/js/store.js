@@ -204,6 +204,8 @@ function renderPage() {
     card.addEventListener('keydown', e => { if (e.key === 'Enter') openModal(parseInt(card.dataset.id)); });
   });
 
+  updatePageSEO();
+
   // Pagination
   const bar = document.getElementById('paginationBar');
   if (totalPages <= 1) {
@@ -225,6 +227,71 @@ function highlightSearch(name) {
 // ═══════════════════════════════════════════
 // ACTIVE FILTER TAGS
 // ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
+// SEO — dynamic structured data + page title
+// ═══════════════════════════════════════════
+function updatePageSEO() {
+  // Build a context-aware title and description
+  let title = 'Overlay Maps — Map Art Prints, Apparel & Stickers';
+  let description = 'Shop map art prints, t-shirts, hoodies, and stickers printed on demand. Unique geography-inspired designs for every city and country.';
+
+  const cat = activeCategory !== 'all'
+    ? activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)
+    : null;
+
+  if (cat && activeCountry !== 'all') {
+    title = `${cat} · ${activeCountry} — Overlay Maps`;
+    description = `Shop ${activeCategory} with ${activeCountry} map designs from Overlay Maps. Printed on demand.`;
+  } else if (cat) {
+    title = `${cat} — Overlay Maps`;
+    description = `Shop ${activeCategory} with unique geography-inspired map designs. Printed on demand by Overlay Maps.`;
+  } else if (activeCountry !== 'all') {
+    title = `${activeCountry} Map Products — Overlay Maps`;
+    description = `Map prints, apparel, and stickers featuring ${activeCountry}. Printed on demand by Overlay Maps.`;
+  } else if (activeSearch) {
+    title = `"${activeSearch}" — Overlay Maps`;
+    description = `Search results for "${activeSearch}" on Overlay Maps. Map art prints, apparel, and stickers.`;
+  }
+
+  document.title = title;
+
+  const metaDesc = document.querySelector('meta[name="description"]');
+  if (metaDesc) metaDesc.setAttribute('content', description);
+
+  // Inject / update JSON-LD ItemList with the full filtered product set
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    'name': title,
+    'numberOfItems': filteredProducts.length,
+    'itemListElement': filteredProducts.slice(0, 50).map((p, i) => ({
+      '@type': 'ListItem',
+      'position': i + 1,
+      'item': {
+        '@type': 'Product',
+        'name': p.name,
+        'image': p.thumbnail || '',
+        'offers': {
+          '@type': 'Offer',
+          'price': Number(p.minPrice).toFixed(2),
+          'priceCurrency': (p.currency || 'EUR').toUpperCase(),
+          'availability': 'https://schema.org/InStock',
+          'seller': { '@type': 'Organization', 'name': 'Overlay Maps' },
+        },
+      },
+    })),
+  };
+
+  let el = document.getElementById('ld-product-list');
+  if (!el) {
+    el = document.createElement('script');
+    el.id = 'ld-product-list';
+    el.type = 'application/ld+json';
+    document.head.appendChild(el);
+  }
+  el.textContent = JSON.stringify(schema);
+}
+
 function renderActiveFilterTags() {
   const container = document.getElementById('activeFilters');
   const tags = [];
