@@ -15,6 +15,6 @@
     "stripe": "^14.0.0"
   },
   "engines": {
-    "node": "25.x"
+    "node": "24.x"
   }
 }
