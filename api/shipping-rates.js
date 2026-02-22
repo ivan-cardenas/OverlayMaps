@@ -32,7 +32,11 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         recipient: { country_code: country_code.toUpperCase() },
         items: items.map(i => ({
-          sync_variant_id: i.variantId,
+          // catalogVariantId is the Printful catalog variant_id (what /shipping/rates needs)
+          // variantId is the sync variant ID (fallback for legacy cart items)
+          ...(i.catalogVariantId
+            ? { variant_id: i.catalogVariantId }
+            : { sync_variant_id: i.variantId }),
           quantity: i.quantity,
         })),
         currency: 'EUR',

@@ -169,6 +169,7 @@ function handleAddToCart() {
   if (!selectedVariant) return;
   const item = {
     variantId: selectedVariant.id,
+    catalogVariantId: selectedVariant.catalogVariantId || null,
     name: PRODUCT.name,
     variantLabel: [selectedPrimary, selectedVariant.options?.secondary].filter(Boolean).join(' / '),
     price: selectedVariant.price,

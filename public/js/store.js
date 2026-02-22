@@ -623,6 +623,7 @@ function handleAddToCart() {
   if (!selectedVariant || !currentProduct) return;
   addToCart({
     variantId: selectedVariant.id,
+    catalogVariantId: selectedVariant.catalogVariantId || null,
     name: currentProduct.name,
     variantLabel: [selectedPrimary, selectedVariant.options?.secondary].filter(Boolean).join(' / '),
     price: selectedVariant.price,
