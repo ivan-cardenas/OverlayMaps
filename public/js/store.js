@@ -186,10 +186,13 @@ function renderPage() {
 
   grid.innerHTML = pageItems.map(p => {
     const thumb = THUMBNAIL_OVERRIDES[p.id] || p.thumbnail || '';
+    const backImg = p.images?.find(i => i.type === 'back');
+    const backUrl = backImg?.url || '';
     return `
-    <article class="product-card" data-id="${p.id}" tabindex="0" role="button" aria-label="${p.name}">
+    <article class="product-card${backUrl ? ' has-back' : ''}" data-id="${p.id}" tabindex="0" role="button" aria-label="${p.name}">
       <div class="product-card-img">
-        <img src="${thumb}" alt="${p.name}" loading="lazy" onerror="this.style.display='none'" />
+        <img class="card-img-front" src="${thumb}" alt="${p.name}" loading="lazy" onerror="this.style.display='none'" />
+        ${backUrl ? `<img class="card-img-back" src="${backUrl}" alt="${p.name} back" loading="lazy" />` : ''}
       </div>
       <div class="product-card-body">
         <span class="product-card-cat">${p.category}${p.country ? ` · ${p.country}` : ''}</span>
