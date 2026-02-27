@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Overlay Maps — Map Art Prints, Apparel &amp; Stickers</title>
+  <meta name="description" content="Shop map art prints, t-shirts, hoodies, and stickers printed on demand. Unique geography-inspired designs for every city and country. Free worldwide shipping on orders over €50." />
+
+  <!-- Canonical -->
+  <link rel="canonical" href="https://overlaymaps.com/" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Overlay Maps" />
+  <meta property="og:title" content="Overlay Maps — Map Art Prints, Apparel &amp; Stickers" />
+  <meta property="og:description" content="Shop map art prints, t-shirts, hoodies, and stickers printed on demand. Unique geography-inspired designs for every city and country." />
+  <meta property="og:url" content="https://overlaymaps.com/" />
+  <meta property="og:image" content="https://overlaymaps.com/img/og-cover.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Overlay Maps — Map Art Prints, Apparel &amp; Stickers" />
+  <meta name="twitter:description" content="Shop map art prints, t-shirts, hoodies, and stickers printed on demand. Unique geography-inspired designs." />
+  <meta name="twitter:image" content="https://overlaymaps.com/img/og-cover.jpg" />
+  <meta name="twitter:site" content="@overlaymaps" />
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Store",
+    "name": "Overlay Maps",
+    "description": "Map art prints, t-shirts, hoodies, and stickers. Where geography meets art.",
+    "url": "https://overlaymaps.com",
+    "logo": "https://overlaymaps.com/img/logo.png",
+    "image": "https://overlaymaps.com/img/og-cover.jpg",
+    "currenciesAccepted": "EUR",
+    "paymentAccepted": "Credit Card",
+    "sameAs": ["https://www.instagram.com/overlaymaps"]
+  }
+  </script>
+
+  <meta name="theme-color" content="#0d0d0d" />
+  <link rel="stylesheet" href="css/store.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="logo">
+      <span class="logo-mark">◈</span>
+      <span class="logo-text">Overlay Maps</span>
+    </a>
+    <nav class="main-nav">
+      <a href="?category=apparel">Apparel</a>
+      <a href="?category=posters">Posters</a>
+      <a href="?category=stickers">Stickers</a>
+      <a href="?category=stationary">Stationary</a>
+      <div class="nav-dropdown">
+        <button class="nav-dropdown-btn" id="navProductsBtn" aria-expanded="false" aria-haspopup="true">Products ▾</button>
+        <div class="nav-dropdown-menu" id="navProductsMenu" aria-hidden="true"></div>
+      </div>
+    </nav>
+    <button class="cart-btn" id="cartToggle" aria-label="Open cart">
+      <span class="cart-icon">◫</span>
+      <span class="cart-count" id="cartCount">0</span>
+    </button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-grid-bg"></div>
+  <div class="hero-content">
+    <p class="hero-eyebrow">Where Geo meets Art</p>
+    <h1 class="hero-title">Maps<br /><em>your way</em></h1>
+    <p class="hero-sub">Posters, shirts, stickers — all printed on demand.<br />Every map tells a story.</p>
+    <a href="#catalog" class="btn-primary">Shop the collection</a>
+  </div>
+  <div class="hero-visual">
+    <div class="map-lines"></div>
+  </div>
+</section>
+
+<section class="catalog-header" id="catalog">
+
+  <div class="search-row">
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input type="search" id="searchInput" class="search-input"
+             placeholder="Search maps, cities, countries…" autocomplete="off" />
+      <button class="search-clear" id="searchClear" aria-label="Clear" style="display:none">✕</button>
+    </div>
+  </div>
+
+  <div class="filter-row">
+    <div class="filter-bar">
+      <button class="filter-btn active" data-cat="all">All</button>
+      <button class="filter-btn" data-cat="apparel">Apparel</button>
+      <button class="filter-btn" data-cat="posters">Posters</button>
+      <button class="filter-btn" data-cat="stickers">Stickers</button>
+      <button class="filter-btn" data-cat="stationary">Stationary</button>
+    </div>
+    <div class="sort-controls">
+      <select id="countryFilter" class="country-select">
+        <option value="all">All countries</option>
+      </select>
+      <select id="sortSelect" class="country-select">
+        <option value="default">Sort: Default</option>
+        <option value="price-asc">Price: Low to High</option>
+        <option value="price-desc">Price: High to Low</option>
+        <option value="name-asc">Name: A to Z</option>
+        <option value="name-desc">Name: Z to A</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="results-bar">
+    <span class="product-count" id="productCount">Loading...</span>
+    <div class="active-filters" id="activeFilters"></div>
+  </div>
+
+</section>
+
+<noscript>
+  <div style="padding:2rem 1rem;text-align:center;font-family:sans-serif">
+    <p>Overlay Maps sells geography-inspired map art printed on demand. Browse our categories:</p>
+    <ul style="list-style:none;padding:0;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+      <li><a href="?category=apparel">Apparel</a></li>
+      <li><a href="?category=posters">Posters</a></li>
+      <li><a href="?category=stickers">Stickers</a></li>
+      <li><a href="?category=stationary">Stationery</a></li>
+    </ul>
+    <p>Please enable JavaScript to view and purchase products.</p>
+  </div>
+</noscript>
+
+<main class="product-grid" id="productGrid">
+  <div class="skeleton-card"></div>
+  <div class="skeleton-card"></div>
+  <div class="skeleton-card"></div>
+  <div class="skeleton-card"></div>
+  <div class="skeleton-card"></div>
+  <div class="skeleton-card"></div>
+</main>
+
+<div id="paginationBar" class="pagination-bar" style="display:none">
+  <button class="pagination-btn" id="prevPage">← Prev</button>
+  <span class="pagination-info" id="pageInfo"></span>
+  <button class="pagination-btn" id="nextPage">Next →</button>
+</div>
+
+<div class="modal-overlay" id="productModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <button class="modal-close" id="modalClose">✕</button>
+    <div class="modal-image-wrap">
+      <img class="modal-image" id="modalImage" src="" alt="" />
+    </div>
+    <div class="modal-details">
+      <p class="modal-category" id="modalCategory"></p>
+      <h2 class="modal-title" id="modalTitle"></h2>
+      <p class="modal-price" id="modalPrice"></p>
+      <div class="variant-section" id="variantSection">
+        <label class="variant-label" id="variantLabel">Select option</label>
+        <div class="variant-options" id="variantOptions"></div>
+      </div>
+      <div class="variant-section" id="secondarySection" style="display:none">
+        <label class="variant-label" id="secondaryLabel">Color</label>
+        <div class="variant-options" id="secondaryOptions"></div>
+      </div>
+      <div class="qty-row">
+        <label class="variant-label">Quantity</label>
+        <div class="qty-control">
+          <button class="qty-btn" id="qtyMinus">−</button>
+          <span class="qty-val" id="qtyVal">1</span>
+          <button class="qty-btn" id="qtyPlus">+</button>
+        </div>
+      </div>
+      <button class="btn-primary btn-full" id="addToCartBtn">Add to cart</button>
+      <p class="modal-note">Printed &amp; shipped by Printful</p>
+    </div>
+  </div>
+</div>
+
+<div class="cart-overlay" id="cartOverlay"></div>
+<aside class="cart-drawer" id="cartDrawer" aria-hidden="true">
+  <div class="cart-header">
+    <h2>Your Cart</h2>
+    <button class="cart-drawer-close" id="cartClose">✕</button>
+  </div>
+  <div class="cart-items" id="cartItems">
+    <p class="cart-empty">Your cart is empty.</p>
+  </div>
+  <div class="cart-footer" id="cartFooter" style="display:none">
+    <div class="cart-total-row">
+      <span>Subtotal</span>
+      <span id="cartTotal">€0.00</span>
+    </div>
+    <div class="cart-shipping-estimator">
+      <label class="variant-label">Estimate Shipping</label>
+      <div class="shipping-input-row">
+        <select id="shippingCountrySelect" class="country-select"></select>
+        <button class="shipping-calc-btn" id="calcShippingBtn">Calculate</button>
+      </div>
+      <div id="shippingRatesList" class="shipping-rates-list"></div>
+    </div>
+    <div class="cart-total-row" id="shippingTotalRow" style="display:none">
+      <span id="shippingTotalLabel">Shipping</span>
+      <span id="shippingTotal">€0.00</span>
+    </div>
+    <div class="cart-total-row cart-grand-total" id="grandTotalRow" style="display:none">
+      <span><strong>Total</strong></span>
+      <span id="grandTotal"><strong>€0.00</strong></span>
+    </div>
+    <p class="cart-shipping-note" id="shippingNote">Shipping calculated above or at checkout</p>
+    <button class="btn-primary btn-full" id="checkoutBtn">Checkout →</button>
+  </div>
+</aside>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div>
+      <p class="footer-brand">◈ Overlay Maps</p>
+      <p>Maps where Geo meets Art</p>
+    </div>
+    <div>
+      <p class="footer-heading">Shop</p>
+      <a href="#apparel">Apparel</a>
+      <a href="#posters">Posters</a>
+      <a href="#stickers">Stickers</a>
+    </div>
+    <div>
+      <p class="footer-heading">Info</p>
+      <a href="/cdn-cgi/l/email-protection#f79f929b9b98b7988192859b968e9a968784d994989a">Contact</a>
+      <a href="https://www.instagram.com/overlaymaps" target="_blank">Instagram</a>
+    </div>
+  </div>
+  <p class="footer-copy">© 2026 Overlay Maps • Powered by Printful + Stripe</p>
+</footer>
+
+<script src="js/store.js"></script>
+<script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@vercel/speed-insights/dist/index.min.js"></script>
+
+</body>
+</html>
