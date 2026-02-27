@@ -412,7 +412,7 @@ function openModal(productId) {
   document.getElementById('modalPrice').textContent = `From ${formatPrice(product.minPrice, product.currency)}`;
   document.getElementById('qtyVal').textContent = '1';
 
-  renderModalThumbs(product, thumb);
+  renderModalThumbs(product, thumb, null);
   renderVariants(product);
 
   document.getElementById('productModal').classList.add('open');
@@ -420,38 +420,47 @@ function openModal(productId) {
   document.body.style.overflow = 'hidden';
 }
 
-function renderModalThumbs(product, activeUrl) {
-  // Collect unique image URLs for this product (max 6)
-  const seen = new Set();
-  const imgs = [];
-
-  // Always include the override or thumbnail first
-  const defaultThumb = THUMBNAIL_OVERRIDES[product.id] || product.thumbnail || '';
-  if (defaultThumb) { seen.add(defaultThumb); imgs.push(defaultThumb); }
-
-  // Add all product images
-  for (const img of product.images || []) {
-    if (img.url && !seen.has(img.url)) {
-      seen.add(img.url);
-      imgs.push(img.url);
-    }
-  }
-
-  // Remove existing thumbs container if present
+function renderModalThumbs(product, activeUrl, activeVariantId) {
+  // Remove existing strip
   const existing = document.getElementById('modalThumbs');
   if (existing) existing.remove();
 
-  // Only show strip if there are multiple images
-  if (imgs.length <= 1) return;
+  // Build thumb list:
+  //   1. The selected color's front mockup (or thumbnail)
+  //   2. Shared back/label images (isShared: true)
+  const thumbs = [];
+  const seen = new Set();
+
+  // Front: find front image for the active variant
+  const frontImg = product.images.find(i =>
+    i.type === 'front' && i.variantId === activeVariantId
+  ) || product.images.find(i => i.isDefault);
+
+  const frontUrl = frontImg?.url || THUMBNAIL_OVERRIDES[product.id] || product.thumbnail || '';
+  if (frontUrl) {
+    seen.add(frontUrl);
+    thumbs.push({ url: frontUrl, label: 'Front' });
+  }
+
+  // Shared: back, label_inside (variantId === null && isShared)
+  for (const img of product.images) {
+    if (img.isShared && img.url && !seen.has(img.url)) {
+      seen.add(img.url);
+      thumbs.push({ url: img.url, label: img.label || img.type });
+    }
+  }
+
+  if (thumbs.length <= 1) return;
 
   const wrap = document.getElementById('modalImage').parentElement;
   const strip = document.createElement('div');
   strip.id = 'modalThumbs';
   strip.className = 'modal-thumbs';
-  strip.innerHTML = imgs.slice(0, 6).map((url, i) => `
-    <button class="modal-thumb-btn ${url === activeUrl ? 'active' : ''}"
-            data-url="${url}" aria-label="View image ${i + 1}">
-      <img src="${url}" alt="View ${i + 1}" loading="lazy" />
+  strip.innerHTML = thumbs.map((t, i) => `
+    <button class="modal-thumb-btn ${t.url === activeUrl ? 'active' : ''}"
+            data-url="${t.url}" aria-label="${t.label}">
+      <img src="${t.url}" alt="${t.label}" loading="lazy" />
+      <span class="modal-thumb-label">${t.label}</span>
     </button>
   `).join('');
   wrap.appendChild(strip);
@@ -567,12 +576,14 @@ function updateModalImage(variant) {
   let newUrl = null;
 
   if (variant && currentProduct.images) {
-    const match = currentProduct.images.find(i => i.variantId === variant.id);
+    // Find the front mockup for this specific variant
+    const match = currentProduct.images.find(i => i.variantId === variant.id && i.type === 'front');
     if (match) newUrl = match.url;
+    // Fallback: same color group
     if (!newUrl) {
       const sameGroup = currentProduct.variants
         .filter(v => v.options.primary === variant.options.primary).map(v => v.id);
-      const groupMatch = currentProduct.images.find(i => sameGroup.includes(i.variantId));
+      const groupMatch = currentProduct.images.find(i => sameGroup.includes(i.variantId) && i.type === 'front');
       if (groupMatch) newUrl = groupMatch.url;
     }
   }
@@ -580,13 +591,8 @@ function updateModalImage(variant) {
 
   img.src = newUrl;
 
-  // Sync active state on thumb strip
-  const strip = document.getElementById('modalThumbs');
-  if (strip) {
-    strip.querySelectorAll('.modal-thumb-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.url === newUrl);
-    });
-  }
+  // Re-render thumb strip with new front image for selected color
+  renderModalThumbs(currentProduct, newUrl, variant?.id || null);
 }
 
 function updateModalPrice() {

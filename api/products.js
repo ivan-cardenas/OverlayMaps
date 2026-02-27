@@ -182,34 +182,75 @@ function groupVariants(variants) {
  * Returns array of { variantId, url, type } — used for image swapping in the UI.
  */
 function extractProductImages(sync_product, sync_variants) {
+  // We build a structured image set:
+  //   - images.byVariant[variantId] = { front, back, label } (URLs per variant)
+  //   - images.shared = [{ url, type }]  (back/label that are the same across all colors)
+  //   - images.list = flat array used by the modal thumb strip for the SELECTED color
+  //
+  // Printful file types on sync_variants:
+  //   'preview'       → color mockup (one per color, changes when color changes)
+  //   'default'       → front print file preview (usually same across sizes of same color)
+  //   'back'          → back print file preview (shared across all colors)
+  //   'label_inside'  → inner label (shared)
+
+  const byVariant = {};   // variantId → { front, back, label }
+  const seenShared = new Set();
+  const shared = [];      // back/label images (same for all colors)
+
+  // First pass: index every variant's files
+  for (const v of sync_variants || []) {
+    const entry = { front: null, back: null, label: null };
+
+    for (const file of v.files || []) {
+      const url = file.preview_url || null;
+      if (!url) continue;
+
+      if (file.type === 'preview') {
+        entry.front = url;  // color mockup = best "front" image
+      } else if (file.type === 'default' && !entry.front) {
+        entry.front = url;  // fallback front if no mockup
+      } else if (file.type === 'back') {
+        entry.back = url;
+        // Collect unique back images as shared (usually same across colors)
+        if (!seenShared.has(url)) {
+          seenShared.add(url);
+          shared.push({ url, type: 'back', label: 'Back' });
+        }
+      } else if (file.type === 'label_inside') {
+        entry.label = url;
+        if (!seenShared.has(url)) {
+          seenShared.add(url);
+          shared.push({ url, type: 'label_inside', label: 'Label' });
+        }
+      }
+    }
+
+    byVariant[v.id] = entry;
+  }
+
+  // Build a flat `images` array for backward compatibility with the modal:
+  // - One entry per variant (front mockup), keyed by variantId
+  // - Plus shared back/label entries (variantId: null so they always show)
   const seen = new Set();
   const images = [];
 
-  // Add the main product thumbnail first
+  // Thumbnail first
   if (sync_product.thumbnail_url) {
     seen.add(sync_product.thumbnail_url);
     images.push({ variantId: null, url: sync_product.thumbnail_url, type: 'thumbnail', isDefault: true });
   }
 
-  // Collect all preview images from all variants
-  // Printful file types: 'default' (front print), 'back' (back print), 'preview' (mockup)
-  // We want all preview_url values regardless of file type
-  for (const v of sync_variants || []) {
-    const files = v.files || [];
-
-    // Sort: put 'preview' type first, then others
-    const sorted = [
-      ...files.filter(f => f.type === 'preview'),
-      ...files.filter(f => f.type !== 'preview'),
-    ];
-
-    for (const file of sorted) {
-      const url = file.preview_url || null;
-      if (url && !seen.has(url)) {
-        seen.add(url);
-        images.push({ variantId: v.id, url, type: file.type || 'preview' });
-      }
+  // One front mockup per variant
+  for (const [variantId, entry] of Object.entries(byVariant)) {
+    if (entry.front && !seen.has(entry.front)) {
+      seen.add(entry.front);
+      images.push({ variantId: parseInt(variantId), url: entry.front, type: 'front' });
     }
+  }
+
+  // Shared back + label images (always shown regardless of selected color)
+  for (const s of shared) {
+    images.push({ variantId: null, url: s.url, type: s.type, label: s.label, isShared: true });
   }
 
   return images;
