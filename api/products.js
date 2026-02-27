@@ -75,7 +75,6 @@ async function fetchPrintfulCatalog() {
         .filter(v => v.retail_price != null)  // only skip variants with no price set
         .map(v => ({
           id: v.id,
-          catalogVariantId: v.variant_id || null,
           previewUrl: v.files?.find(f => f.type === "preview")?.preview_url || v.files?.[0]?.preview_url || null,
           name: v.name,
           sku: v.sku || '',
@@ -179,7 +178,8 @@ function groupVariants(variants) {
 
 /**
  * Extract all unique preview images from a product's variants.
- * Returns array of { variantId, url } — used for image swapping in the UI.
+ * Collects front, back, and all other preview images.
+ * Returns array of { variantId, url, type } — used for image swapping in the UI.
  */
 function extractProductImages(sync_product, sync_variants) {
   const seen = new Set();
@@ -188,17 +188,27 @@ function extractProductImages(sync_product, sync_variants) {
   // Add the main product thumbnail first
   if (sync_product.thumbnail_url) {
     seen.add(sync_product.thumbnail_url);
-    images.push({ variantId: null, url: sync_product.thumbnail_url, isDefault: true });
+    images.push({ variantId: null, url: sync_product.thumbnail_url, type: 'thumbnail', isDefault: true });
   }
 
-  // Add per-variant preview images
+  // Collect all preview images from all variants
+  // Printful file types: 'default' (front print), 'back' (back print), 'preview' (mockup)
+  // We want all preview_url values regardless of file type
   for (const v of sync_variants || []) {
-    const url = v.files?.find(f => f.type === 'preview')?.preview_url
-              || v.files?.[0]?.preview_url
-              || null;
-    if (url && !seen.has(url)) {
-      seen.add(url);
-      images.push({ variantId: v.id, url });
+    const files = v.files || [];
+
+    // Sort: put 'preview' type first, then others
+    const sorted = [
+      ...files.filter(f => f.type === 'preview'),
+      ...files.filter(f => f.type !== 'preview'),
+    ];
+
+    for (const file of sorted) {
+      const url = file.preview_url || null;
+      if (url && !seen.has(url)) {
+        seen.add(url);
+        images.push({ variantId: v.id, url, type: file.type || 'preview' });
+      }
     }
   }
 

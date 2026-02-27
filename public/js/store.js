@@ -8,7 +8,7 @@
 // ═══════════════════════════════════════════
 const CONFIG = {
   API_BASE: 'https://overlay-maps.vercel.app',
-  STRIPE_PK: 'pk_live_51T3JChL50YWJ2vn24GRdCJBcDP0Ggn7mwPUoocxJQZeb1J69H8OYhD5uRYZjsoIKreeWp83oeeUDfj3HFTQS2a7A00mfZUdiy0',
+  STRIPE_PK: 'pk_live_51QsNPRL50YWJ2vn2WmXXYkWHFyQKm5kH9HjN8D8i5GpLi7KQKZL0sAh55nzRRqcf7dvVJZ5SyBg0ZhOuPDhm7Rma00xr5IBa3',
   CART_KEY: 'overlaymaps_cart',
   PAGE_SIZE: 24,
 };
@@ -32,7 +32,6 @@ let currentProduct = null;
 let selectedPrimary = null;
 let selectedVariant = null;
 let quantity = 1;
-let selectedShippingOption = null;
 
 // ═══════════════════════════════════════════
 // INIT
@@ -107,7 +106,6 @@ async function fetchProducts() {
     const { products } = await res.json();
     allProducts = products;
     buildCountryFilter(products);
-    populateNavDropdown(products);
     // Sync country select to URL state
     if (activeCountry !== 'all') {
       document.getElementById('countryFilter').value = activeCountry;
@@ -206,8 +204,6 @@ function renderPage() {
     card.addEventListener('keydown', e => { if (e.key === 'Enter') openModal(parseInt(card.dataset.id)); });
   });
 
-  updatePageSEO();
-
   // Pagination
   const bar = document.getElementById('paginationBar');
   if (totalPages <= 1) {
@@ -229,71 +225,6 @@ function highlightSearch(name) {
 // ═══════════════════════════════════════════
 // ACTIVE FILTER TAGS
 // ═══════════════════════════════════════════
-// ═══════════════════════════════════════════
-// SEO — dynamic structured data + page title
-// ═══════════════════════════════════════════
-function updatePageSEO() {
-  // Build a context-aware title and description
-  let title = 'Overlay Maps — Map Art Prints, Apparel & Stickers';
-  let description = 'Shop map art prints, t-shirts, hoodies, and stickers printed on demand. Unique geography-inspired designs for every city and country.';
-
-  const cat = activeCategory !== 'all'
-    ? activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)
-    : null;
-
-  if (cat && activeCountry !== 'all') {
-    title = `${cat} · ${activeCountry} — Overlay Maps`;
-    description = `Shop ${activeCategory} with ${activeCountry} map designs from Overlay Maps. Printed on demand.`;
-  } else if (cat) {
-    title = `${cat} — Overlay Maps`;
-    description = `Shop ${activeCategory} with unique geography-inspired map designs. Printed on demand by Overlay Maps.`;
-  } else if (activeCountry !== 'all') {
-    title = `${activeCountry} Map Products — Overlay Maps`;
-    description = `Map prints, apparel, and stickers featuring ${activeCountry}. Printed on demand by Overlay Maps.`;
-  } else if (activeSearch) {
-    title = `"${activeSearch}" — Overlay Maps`;
-    description = `Search results for "${activeSearch}" on Overlay Maps. Map art prints, apparel, and stickers.`;
-  }
-
-  document.title = title;
-
-  const metaDesc = document.querySelector('meta[name="description"]');
-  if (metaDesc) metaDesc.setAttribute('content', description);
-
-  // Inject / update JSON-LD ItemList with the full filtered product set
-  const schema = {
-    '@context': 'https://schema.org',
-    '@type': 'ItemList',
-    'name': title,
-    'numberOfItems': filteredProducts.length,
-    'itemListElement': filteredProducts.slice(0, 50).map((p, i) => ({
-      '@type': 'ListItem',
-      'position': i + 1,
-      'item': {
-        '@type': 'Product',
-        'name': p.name,
-        'image': p.thumbnail || '',
-        'offers': {
-          '@type': 'Offer',
-          'price': Number(p.minPrice).toFixed(2),
-          'priceCurrency': (p.currency || 'EUR').toUpperCase(),
-          'availability': 'https://schema.org/InStock',
-          'seller': { '@type': 'Organization', 'name': 'Overlay Maps' },
-        },
-      },
-    })),
-  };
-
-  let el = document.getElementById('ld-product-list');
-  if (!el) {
-    el = document.createElement('script');
-    el.id = 'ld-product-list';
-    el.type = 'application/ld+json';
-    document.head.appendChild(el);
-  }
-  el.textContent = JSON.stringify(schema);
-}
-
 function renderActiveFilterTags() {
   const container = document.getElementById('activeFilters');
   const tags = [];
@@ -481,11 +412,57 @@ function openModal(productId) {
   document.getElementById('modalPrice').textContent = `From ${formatPrice(product.minPrice, product.currency)}`;
   document.getElementById('qtyVal').textContent = '1';
 
+  renderModalThumbs(product, thumb);
   renderVariants(product);
 
   document.getElementById('productModal').classList.add('open');
   document.getElementById('productModal').setAttribute('aria-hidden', 'false');
   document.body.style.overflow = 'hidden';
+}
+
+function renderModalThumbs(product, activeUrl) {
+  // Collect unique image URLs for this product (max 6)
+  const seen = new Set();
+  const imgs = [];
+
+  // Always include the override or thumbnail first
+  const defaultThumb = THUMBNAIL_OVERRIDES[product.id] || product.thumbnail || '';
+  if (defaultThumb) { seen.add(defaultThumb); imgs.push(defaultThumb); }
+
+  // Add all product images
+  for (const img of product.images || []) {
+    if (img.url && !seen.has(img.url)) {
+      seen.add(img.url);
+      imgs.push(img.url);
+    }
+  }
+
+  // Remove existing thumbs container if present
+  const existing = document.getElementById('modalThumbs');
+  if (existing) existing.remove();
+
+  // Only show strip if there are multiple images
+  if (imgs.length <= 1) return;
+
+  const wrap = document.getElementById('modalImage').parentElement;
+  const strip = document.createElement('div');
+  strip.id = 'modalThumbs';
+  strip.className = 'modal-thumbs';
+  strip.innerHTML = imgs.slice(0, 6).map((url, i) => `
+    <button class="modal-thumb-btn ${url === activeUrl ? 'active' : ''}"
+            data-url="${url}" aria-label="View image ${i + 1}">
+      <img src="${url}" alt="View ${i + 1}" loading="lazy" />
+    </button>
+  `).join('');
+  wrap.appendChild(strip);
+
+  strip.querySelectorAll('.modal-thumb-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('modalImage').src = btn.dataset.url;
+      strip.querySelectorAll('.modal-thumb-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
 }
 
 function closeModal() {
@@ -587,15 +564,29 @@ function renderSecondaryVariants(product, primaryKey) {
 function updateModalImage(variant) {
   if (!currentProduct) return;
   const img = document.getElementById('modalImage');
+  let newUrl = null;
+
   if (variant && currentProduct.images) {
     const match = currentProduct.images.find(i => i.variantId === variant.id);
-    if (match) { img.src = match.url; return; }
-    const sameGroup = currentProduct.variants
-      .filter(v => v.options.primary === variant.options.primary).map(v => v.id);
-    const groupMatch = currentProduct.images.find(i => sameGroup.includes(i.variantId));
-    if (groupMatch) { img.src = groupMatch.url; return; }
+    if (match) newUrl = match.url;
+    if (!newUrl) {
+      const sameGroup = currentProduct.variants
+        .filter(v => v.options.primary === variant.options.primary).map(v => v.id);
+      const groupMatch = currentProduct.images.find(i => sameGroup.includes(i.variantId));
+      if (groupMatch) newUrl = groupMatch.url;
+    }
   }
-  img.src = THUMBNAIL_OVERRIDES[currentProduct.id] || currentProduct.thumbnail || '';
+  if (!newUrl) newUrl = THUMBNAIL_OVERRIDES[currentProduct.id] || currentProduct.thumbnail || '';
+
+  img.src = newUrl;
+
+  // Sync active state on thumb strip
+  const strip = document.getElementById('modalThumbs');
+  if (strip) {
+    strip.querySelectorAll('.modal-thumb-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.url === newUrl);
+    });
+  }
 }
 
 function updateModalPrice() {
@@ -623,7 +614,6 @@ function handleAddToCart() {
   if (!selectedVariant || !currentProduct) return;
   addToCart({
     variantId: selectedVariant.id,
-    catalogVariantId: selectedVariant.catalogVariantId || null,
     name: currentProduct.name,
     variantLabel: [selectedPrimary, selectedVariant.options?.secondary].filter(Boolean).join(' / '),
     price: selectedVariant.price,
@@ -656,7 +646,6 @@ function addToCart(item) {
     cart.push({ ...item });
   }
   saveCart();
-  resetShipping();
   renderCart();
   updateCartCount();
 }
@@ -664,7 +653,6 @@ function addToCart(item) {
 function removeFromCart(variantId) {
   cart = cart.filter(i => i.variantId !== variantId);
   saveCart();
-  resetShipping();
   renderCart();
   updateCartCount();
 }
@@ -698,16 +686,9 @@ function renderCart() {
   });
 
   const currency = cart[0]?.currency || 'EUR';
-  const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  totalEl.textContent = formatPrice(subtotal, currency);
+  const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  totalEl.textContent = formatPrice(total, currency);
   footer.style.display = 'flex';
-  updateShippingDisplay();
-
-  const checkoutBtn = document.getElementById('checkoutBtn');
-    if (checkoutBtn) {
-      checkoutBtn.disabled = !selectedShippingOption;
-      checkoutBtn.textContent = selectedShippingOption ? 'Checkout →' : 'Select shipping first';
-    }
 }
 
 function updateCartCount() {
@@ -722,7 +703,6 @@ function initCartUI() {
   document.getElementById('cartClose').addEventListener('click', closeCart);
   document.getElementById('cartOverlay').addEventListener('click', closeCart);
   document.getElementById('checkoutBtn').addEventListener('click', handleCheckout);
-  initShippingEstimator();
   renderCart();
   updateCartCount();
 }
@@ -744,14 +724,6 @@ function closeCart() {
 // ═══════════════════════════════════════════
 async function handleCheckout() {
   if (cart.length === 0) return;
-  
-  // Require shipping selection
-  if (!selectedShippingOption) {
-    showToast('Please calculate and select a shipping option first');
-    document.getElementById('shippingCountrySelect')?.focus();
-    return;
-  }
-
   const btn = document.getElementById('checkoutBtn');
   btn.disabled = true;
   btn.textContent = 'Loading...';
@@ -760,7 +732,7 @@ async function handleCheckout() {
     const res = await fetch(`${CONFIG.API_BASE}/api/create-checkout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: cart, shippingOption: selectedShippingOption }),
+      body: JSON.stringify({ items: cart }),
     });
     if (!res.ok) {
       const err = await res.json();
@@ -809,177 +781,4 @@ function showToast(msg) {
   toast.style.opacity = '1';
   clearTimeout(toast._timer);
   toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
-}
-
-// ═══════════════════════════════════════════
-// SHIPPING ESTIMATOR
-// ═══════════════════════════════════════════
-const SHIP_COUNTRIES = [
-  ['AR','Argentina'],['AU','Australia'],['AT','Austria'],['BE','Belgium'],
-  ['BR','Brazil'],['CA','Canada'],['CO','Colombia'],['DK','Denmark'],
-  ['FI','Finland'],['FR','France'],['DE','Germany'],['IE','Ireland'],
-  ['IT','Italy'],['JP','Japan'],['KR','South Korea'],['MX','Mexico'],
-  ['NL','Netherlands'],['NZ','New Zealand'],['NO','Norway'],['PL','Poland'],
-  ['PT','Portugal'],['SG','Singapore'],['ES','Spain'],['SE','Sweden'],
-  ['CH','Switzerland'],['GB','United Kingdom'],['US','United States'],
-];
-
-function initShippingEstimator() {
-  const select = document.getElementById('shippingCountrySelect');
-  const calcBtn = document.getElementById('calcShippingBtn');
-  if (!select || !calcBtn) return;
-
-  select.innerHTML = '<option value="">Select country\u2026</option>' +
-    SHIP_COUNTRIES.map(([code, name]) => `<option value="${code}">${name}</option>`).join('');
-
-  calcBtn.addEventListener('click', calcShipping);
-}
-
-async function calcShipping() {
-  if (!cart.length) return;
-  const country = document.getElementById('shippingCountrySelect')?.value;
-  if (!country) { showToast('Please select a country first'); return; }
-
-  const ratesList = document.getElementById('shippingRatesList');
-  const calcBtn = document.getElementById('calcShippingBtn');
-  if (!ratesList || !calcBtn) return;
-
-  calcBtn.disabled = true;
-  calcBtn.textContent = '\u2026';
-  ratesList.innerHTML = '<p class="shipping-loading">Calculating\u2026</p>';
-
-  try {
-    const res = await fetch(`${CONFIG.API_BASE}/api/shipping-rates`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        country_code: country,
-        items: cart.map(i => ({ 
-  variantId: i.variantId, 
-  catalogVariantId: i.catalogVariantId,
-  quantity: i.quantity 
-})),
-      }),
-    });
-    const { rates, error } = await res.json();
-
-    if (error || !rates?.length) {
-      ratesList.innerHTML = `<p class="shipping-error">${error || 'No rates available for this country.'}</p>`;
-      return;
-    }
-
-    ratesList.innerHTML = rates.map((r, idx) =>
-      `<label class="shipping-rate-option">
-        <input type="radio" name="shippingRate" value="${r.id}" data-rate='${JSON.stringify(r)}' ${idx === 0 ? 'checked' : ''} />
-        <span class="shipping-rate-info">
-          <span class="shipping-rate-name">${r.name}</span>
-          ${r.minDays ? `<span class="shipping-rate-days">${r.minDays}\u2013${r.maxDays || r.minDays} business days</span>` : ''}
-        </span>
-        <span class="shipping-rate-price">${formatPrice(r.rate, r.currency)}</span>
-      </label>`
-    ).join('');
-
-    const firstInput = ratesList.querySelector('input[type="radio"]');
-    if (firstInput) {
-      selectedShippingOption = JSON.parse(firstInput.dataset.rate);
-      updateShippingDisplay();
-    }
-
-    ratesList.querySelectorAll('input[type="radio"]').forEach(radio => {
-      radio.addEventListener('change', () => {
-        selectedShippingOption = JSON.parse(radio.dataset.rate);
-        updateShippingDisplay();
-      });
-    });
-  } catch {
-    ratesList.innerHTML = '<p class="shipping-error">Failed to calculate shipping. Please try again.</p>';
-  } finally {
-    calcBtn.disabled = false;
-    calcBtn.textContent = 'Calculate';
-  }
-}
-
-function resetShipping() {
-  selectedShippingOption = null;
-  const ratesList = document.getElementById('shippingRatesList');
-  if (ratesList) ratesList.innerHTML = '';
-  updateShippingDisplay();
-}
-
-function updateShippingDisplay() {
-  const shippingRow = document.getElementById('shippingTotalRow');
-  const grandTotalRow = document.getElementById('grandTotalRow');
-  const shippingNote = document.getElementById('shippingNote');
-  if (!shippingRow || !grandTotalRow) return;
-
-  if (selectedShippingOption && cart.length) {
-    const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-    const currency = cart[0]?.currency || 'EUR';
-    document.getElementById('shippingTotalLabel').textContent = selectedShippingOption.name;
-    document.getElementById('shippingTotal').textContent = formatPrice(selectedShippingOption.rate, selectedShippingOption.currency);
-    document.getElementById('grandTotal').innerHTML = `<strong>${formatPrice(subtotal + selectedShippingOption.rate, currency)}</strong>`;
-    shippingRow.style.display = 'flex';
-    grandTotalRow.style.display = 'flex';
-    if (shippingNote) shippingNote.style.display = 'none';
-  } else {
-    shippingRow.style.display = 'none';
-    grandTotalRow.style.display = 'none';
-    if (shippingNote) shippingNote.style.display = 'block';
-  }
-
-  const checkoutBtn = document.getElementById('checkoutBtn');
-  if (checkoutBtn) {
-    checkoutBtn.disabled = !selectedShippingOption || cart.length === 0;
-    checkoutBtn.textContent = selectedShippingOption ? 'Checkout →' : 'Select shipping first';
-  }
-}
-
-// ═══════════════════════════════════════════
-// NAV PRODUCTS DROPDOWN
-// ═══════════════════════════════════════════
-function slugify(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .substring(0, 80);
-}
-
-function populateNavDropdown(products) {
-  const menu = document.getElementById('navProductsMenu');
-  const btn = document.getElementById('navProductsBtn');
-  if (!menu || !btn) return;
-
-  // Group products by category
-  const categories = {};
-  products.forEach(p => {
-    const cat = p.category || 'other';
-    if (!categories[cat]) categories[cat] = [];
-    categories[cat].push(p);
-  });
-
-  let html = '';
-  Object.entries(categories).forEach(([cat, items]) => {
-    html += `<div class="nav-dropdown-heading">${cat.charAt(0).toUpperCase() + cat.slice(1)}</div>`;
-    items.forEach(p => {
-      html += `<a class="nav-dropdown-item" href="/products/${slugify(p.name)}/">${p.name}</a>`;
-    });
-  });
-  menu.innerHTML = html;
-
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const isOpen = menu.classList.contains('open');
-    menu.classList.toggle('open', !isOpen);
-    btn.setAttribute('aria-expanded', String(!isOpen));
-    menu.setAttribute('aria-hidden', String(isOpen));
-  });
-
-  document.addEventListener('click', () => {
-    menu.classList.remove('open');
-    btn.setAttribute('aria-expanded', 'false');
-    menu.setAttribute('aria-hidden', 'true');
-  });
 }
