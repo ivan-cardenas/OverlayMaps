@@ -32,6 +32,7 @@ let currentProduct = null;
 let selectedPrimary = null;
 let selectedVariant = null;
 let quantity = 1;
+let selectedShippingOption = null;
 
 // ═══════════════════════════════════════════
 // INIT
@@ -46,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initPagination();
   readURLState();
   fetchProducts();
+  initShippingEstimator();
 
   if (new URLSearchParams(location.search).get('canceled')) {
     showToast('Checkout canceled — your cart is still saved.');
@@ -741,7 +743,15 @@ async function handleCheckout() {
     const res = await fetch(`${CONFIG.API_BASE}/api/create-checkout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: cart }),
+      body: JSON.stringify({
+        items: cart,
+        shipping: selectedShippingOption ? {
+          id: selectedShippingOption.id,
+          name: selectedShippingOption.name,
+          rate: selectedShippingOption.rate,
+          currency: selectedShippingOption.currency,
+        } : null,
+      }),
     });
     if (!res.ok) {
       const err = await res.json();
