@@ -43,8 +43,10 @@ export default async function handler(req, res) {
       return { variant_id: catalogVariantId, quantity: i.quantity };
     }));
 
-    if (resolvedItems.some(i => !i.variant_id)) {
-      return res.status(422).json({ error: 'Could not resolve one or more product variants' });
+    const unresolved = resolvedItems.filter(i => !i.variant_id);
+    if (unresolved.length) {
+      console.error('Unresolved variants:', JSON.stringify(items));
+      return res.status(422).json({ error: `Could not resolve ${unresolved.length} variant(s). Make sure catalogVariantId is included in cart items.` });
     }
 
     const pfRes = await fetch('https://api.printful.com/shipping/rates', {

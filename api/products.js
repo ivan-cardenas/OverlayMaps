@@ -75,6 +75,7 @@ async function fetchPrintfulCatalog() {
         .filter(v => v.retail_price != null)  // only skip variants with no price set
         .map(v => ({
           id: v.id,
+          catalogVariantId: v.variant_id || null,
           previewUrl: v.files?.find(f => f.type === "preview")?.preview_url || v.files?.[0]?.preview_url || null,
           name: v.name,
           sku: v.sku || '',
