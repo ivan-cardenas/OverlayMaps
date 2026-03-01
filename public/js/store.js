@@ -791,3 +791,177 @@ function showToast(msg) {
   clearTimeout(toast._timer);
   toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
 }
+
+
+// ═══════════════════════════════════════════
+// SHIPPING ESTIMATOR
+// ═══════════════════════════════════════════
+const SHIP_COUNTRIES = [
+  ['AR','Argentina'],['AU','Australia'],['AT','Austria'],['BE','Belgium'],
+  ['BR','Brazil'],['CA','Canada'],['CO','Colombia'],['DK','Denmark'],
+  ['FI','Finland'],['FR','France'],['DE','Germany'],['IE','Ireland'],
+  ['IT','Italy'],['JP','Japan'],['KR','South Korea'],['MX','Mexico'],
+  ['NL','Netherlands'],['NZ','New Zealand'],['NO','Norway'],['PL','Poland'],
+  ['PT','Portugal'],['SG','Singapore'],['ES','Spain'],['SE','Sweden'],
+  ['CH','Switzerland'],['GB','United Kingdom'],['US','United States'],
+];
+
+function initShippingEstimator() {
+  const select = document.getElementById('shippingCountrySelect');
+  const calcBtn = document.getElementById('calcShippingBtn');
+  if (!select || !calcBtn) return;
+
+  select.innerHTML = '<option value="">Select country\u2026</option>' +
+    SHIP_COUNTRIES.map(([code, name]) => `<option value="${code}">${name}</option>`).join('');
+
+  calcBtn.addEventListener('click', calcShipping);
+}
+
+async function calcShipping() {
+  if (!cart.length) return;
+  const country = document.getElementById('shippingCountrySelect')?.value;
+  if (!country) { showToast('Please select a country first'); return; }
+
+  const ratesList = document.getElementById('shippingRatesList');
+  const calcBtn = document.getElementById('calcShippingBtn');
+  if (!ratesList || !calcBtn) return;
+
+  calcBtn.disabled = true;
+  calcBtn.textContent = '\u2026';
+  ratesList.innerHTML = '<p class="shipping-loading">Calculating\u2026</p>';
+
+  try {
+    const res = await fetch(`${CONFIG.API_BASE}/api/shipping-rates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        country_code: country,
+        items: cart.map(i => ({ 
+  variantId: i.variantId, 
+  catalogVariantId: i.catalogVariantId,
+  quantity: i.quantity 
+})),
+      }),
+    });
+    const { rates, error } = await res.json();
+
+    if (error || !rates?.length) {
+      ratesList.innerHTML = `<p class="shipping-error">${error || 'No rates available for this country.'}</p>`;
+      return;
+    }
+
+    ratesList.innerHTML = rates.map((r, idx) =>
+      `<label class="shipping-rate-option">
+        <input type="radio" name="shippingRate" value="${r.id}" data-rate='${JSON.stringify(r)}' ${idx === 0 ? 'checked' : ''} />
+        <span class="shipping-rate-info">
+          <span class="shipping-rate-name">${r.name}</span>
+          ${r.minDays ? `<span class="shipping-rate-days">${r.minDays}\u2013${r.maxDays || r.minDays} business days</span>` : ''}
+        </span>
+        <span class="shipping-rate-price">${formatPrice(r.rate, r.currency)}</span>
+      </label>`
+    ).join('');
+
+    const firstInput = ratesList.querySelector('input[type="radio"]');
+    if (firstInput) {
+      selectedShippingOption = JSON.parse(firstInput.dataset.rate);
+      updateShippingDisplay();
+    }
+
+    ratesList.querySelectorAll('input[type="radio"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        selectedShippingOption = JSON.parse(radio.dataset.rate);
+        updateShippingDisplay();
+      });
+    });
+  } catch {
+    ratesList.innerHTML = '<p class="shipping-error">Failed to calculate shipping. Please try again.</p>';
+  } finally {
+    calcBtn.disabled = false;
+    calcBtn.textContent = 'Calculate';
+  }
+}
+
+function resetShipping() {
+  selectedShippingOption = null;
+  const ratesList = document.getElementById('shippingRatesList');
+  if (ratesList) ratesList.innerHTML = '';
+  updateShippingDisplay();
+}
+
+function updateShippingDisplay() {
+  const shippingRow = document.getElementById('shippingTotalRow');
+  const grandTotalRow = document.getElementById('grandTotalRow');
+  const shippingNote = document.getElementById('shippingNote');
+  if (!shippingRow || !grandTotalRow) return;
+
+  if (selectedShippingOption && cart.length) {
+    const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+    const currency = cart[0]?.currency || 'EUR';
+    document.getElementById('shippingTotalLabel').textContent = selectedShippingOption.name;
+    document.getElementById('shippingTotal').textContent = formatPrice(selectedShippingOption.rate, selectedShippingOption.currency);
+    document.getElementById('grandTotal').innerHTML = `<strong>${formatPrice(subtotal + selectedShippingOption.rate, currency)}</strong>`;
+    shippingRow.style.display = 'flex';
+    grandTotalRow.style.display = 'flex';
+    if (shippingNote) shippingNote.style.display = 'none';
+  } else {
+    shippingRow.style.display = 'none';
+    grandTotalRow.style.display = 'none';
+    if (shippingNote) shippingNote.style.display = 'block';
+  }
+
+  const checkoutBtn = document.getElementById('checkoutBtn');
+  if (checkoutBtn) {
+    checkoutBtn.disabled = !selectedShippingOption || cart.length === 0;
+    checkoutBtn.textContent = selectedShippingOption ? 'Checkout →' : 'Select shipping first';
+  }
+}
+
+// ═══════════════════════════════════════════
+// NAV PRODUCTS DROPDOWN
+// ═══════════════════════════════════════════
+function slugify(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .substring(0, 80);
+}
+
+function populateNavDropdown(products) {
+  const menu = document.getElementById('navProductsMenu');
+  const btn = document.getElementById('navProductsBtn');
+  if (!menu || !btn) return;
+
+  // Group products by category
+  const categories = {};
+  products.forEach(p => {
+    const cat = p.category || 'other';
+    if (!categories[cat]) categories[cat] = [];
+    categories[cat].push(p);
+  });
+
+  let html = '';
+  Object.entries(categories).forEach(([cat, items]) => {
+    html += `<div class="nav-dropdown-heading">${cat.charAt(0).toUpperCase() + cat.slice(1)}</div>`;
+    items.forEach(p => {
+      html += `<a class="nav-dropdown-item" href="/products/${slugify(p.name)}/">${p.name}</a>`;
+    });
+  });
+  menu.innerHTML = html;
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = menu.classList.contains('open');
+    menu.classList.toggle('open', !isOpen);
+    btn.setAttribute('aria-expanded', String(!isOpen));
+    menu.setAttribute('aria-hidden', String(isOpen));
+  });
+
+  document.addEventListener('click', () => {
+    menu.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+    menu.setAttribute('aria-hidden', 'true');
+  });
+}
