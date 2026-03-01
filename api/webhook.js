@@ -124,7 +124,9 @@ async function createPrintfulOrder(session) {
   // Build Printful order payload
   const order = {
     // Use the Stripe session ID as the external reference
-    external_id: `stripe_${session.id.slice(-50)}`,
+    // external_id: alphanumeric + hyphens only, max 64 chars
+    // Strip the cs_live_/cs_test_ prefix, keep just the unique part
+    external_id: session.id.replace(/^cs_(live|test)_/, '').slice(0, 64).replace(/[^a-zA-Z0-9_-]/g, ''),
 
     recipient: {
       name: shipping.name || customer.name,
