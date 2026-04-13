@@ -68,6 +68,9 @@
         <div class="nav-dropdown-menu" id="navProductsMenu" aria-hidden="true"></div>
       </div>
     </nav>
+    <button class="hamburger-btn" id="mobileMenuToggle" aria-label="Open menu" aria-expanded="false">
+      <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+    </button>
     <button class="cart-btn" id="cartToggle" aria-label="Open cart">
       <span class="cart-icon">◫</span>
       <span class="cart-count" id="cartCount">0</span>
@@ -194,6 +197,10 @@
     <h2>Your Cart</h2>
     <button class="cart-drawer-close" id="cartClose">✕</button>
   </div>
+  <div class="free-ship-bar" id="freeShipBar" style="display:none">
+    <p class="free-ship-text" id="freeShipText"></p>
+    <div class="free-ship-track"><div class="free-ship-fill" id="freeShipFill" style="width:0%"></div></div>
+  </div>
   <div class="cart-items" id="cartItems">
     <p class="cart-empty">Your cart is empty.</p>
   </div>
@@ -243,6 +250,26 @@
   </div>
   <p class="footer-copy">© 2026 Overlay Maps • Powered by Printful + Stripe</p>
 </footer>
+
+<div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+<nav class="mobile-nav" id="mobileNav" aria-hidden="true">
+  <div class="mobile-nav-header">
+    <a href="/" class="logo">
+      <span class="logo-mark">◈</span>
+      <span class="logo-text">Overlay Maps</span>
+    </a>
+    <button class="mobile-nav-close" id="mobileNavClose" aria-label="Close menu">✕</button>
+  </div>
+  <div class="mobile-nav-links">
+    <a href="?category=apparel" class="mobile-nav-link">Apparel</a>
+    <a href="?category=posters" class="mobile-nav-link">Posters</a>
+    <a href="?category=stickers" class="mobile-nav-link">Stickers</a>
+    <a href="?category=stationary" class="mobile-nav-link">Stationary</a>
+  </div>
+  <div class="mobile-nav-footer">
+    <a href="https://www.instagram.com/overlaymaps" target="_blank" class="mobile-nav-link">Instagram</a>
+  </div>
+</nav>
 
 <script src="js/store.js"></script>
 <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>

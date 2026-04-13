@@ -11,6 +11,7 @@ const CONFIG = {
   STRIPE_PK: 'pk_live_51QsNPRL50YWJ2vn2WmXXYkWHFyQKm5kH9HjN8D8i5GpLi7KQKZL0sAh55nzRRqcf7dvVJZ5SyBg0ZhOuPDhm7Rma00xr5IBa3',
   CART_KEY: 'overlaymaps_cart',
   PAGE_SIZE: 24,
+  FREE_SHIP_THRESHOLD: 50,
 };
 
 const THUMBNAIL_OVERRIDES = {
@@ -48,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
   readURLState();
   fetchProducts();
   initShippingEstimator();
+  initMobileMenu();
 
   if (new URLSearchParams(location.search).get('canceled')) {
     showToast('Checkout canceled — your cart is still saved.');
@@ -195,6 +197,7 @@ function renderPage() {
       <div class="product-card-img">
         <img class="card-img-front" src="${thumb}" alt="${p.name}" loading="lazy" onerror="this.style.display='none'" />
         ${backUrl ? `<img class="card-img-back" src="${backUrl}" alt="${p.name} back" loading="lazy" />` : ''}
+        <div class="card-cta-overlay"><span class="card-cta-btn">Shop →</span></div>
       </div>
       <div class="product-card-body">
         <span class="product-card-cat">${p.category}${p.country ? ` · ${p.country}` : ''}</span>
@@ -684,10 +687,15 @@ function renderCart() {
     <div class="cart-item">
       <img class="cart-item-img" src="${item.thumbnail || ''}" alt="${item.name}"
            onerror="this.style.display='none'" />
-      <div>
+      <div class="cart-item-details">
         <div class="cart-item-name">${item.name}</div>
         ${item.variantLabel ? `<div class="cart-item-variant">${item.variantLabel}</div>` : ''}
-        <div class="cart-item-price">${item.quantity} × ${formatPrice(item.price, item.currency)}</div>
+        <div class="cart-item-price">${formatPrice(item.price, item.currency)}</div>
+        <div class="cart-item-qty-row">
+          <button class="cart-qty-btn" data-variant="${item.variantId}" data-delta="-1">−</button>
+          <span class="cart-qty-num">${item.quantity}</span>
+          <button class="cart-qty-btn" data-variant="${item.variantId}" data-delta="1">+</button>
+        </div>
       </div>
       <button class="cart-item-remove" data-variant="${item.variantId}" aria-label="Remove">✕</button>
     </div>
@@ -696,11 +704,15 @@ function renderCart() {
   container.querySelectorAll('.cart-item-remove').forEach(btn => {
     btn.addEventListener('click', () => removeFromCart(parseInt(btn.dataset.variant)));
   });
+  container.querySelectorAll('.cart-qty-btn').forEach(btn => {
+    btn.addEventListener('click', () => updateCartItemQty(parseInt(btn.dataset.variant), parseInt(btn.dataset.delta)));
+  });
 
   const currency = cart[0]?.currency || 'EUR';
   const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
   totalEl.textContent = formatPrice(total, currency);
   footer.style.display = 'flex';
+  updateFreeShippingBar();
 }
 
 function updateCartCount() {
@@ -899,6 +911,76 @@ function resetShipping() {
   updateShippingDisplay();
 }
 
+function updateCartItemQty(variantId, delta) {
+  const item = cart.find(i => i.variantId === variantId);
+  if (!item) return;
+  item.quantity = Math.max(1, Math.min(20, item.quantity + delta));
+  saveCart();
+  selectedShippingOption = null;
+  const ratesList = document.getElementById('shippingRatesList');
+  if (ratesList) ratesList.innerHTML = '';
+  renderCart();
+  updateCartCount();
+  updateShippingDisplay();
+}
+
+function updateFreeShippingBar() {
+  const bar = document.getElementById('freeShipBar');
+  const textEl = document.getElementById('freeShipText');
+  const fill = document.getElementById('freeShipFill');
+  if (!bar || !textEl || !fill) return;
+
+  if (cart.length === 0) {
+    bar.style.display = 'none';
+    return;
+  }
+
+  const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const threshold = CONFIG.FREE_SHIP_THRESHOLD;
+  const pct = Math.min(100, (total / threshold) * 100);
+
+  bar.style.display = 'block';
+  fill.style.width = `${pct}%`;
+
+  if (total >= threshold) {
+    textEl.textContent = 'You qualify for free shipping!';
+    bar.classList.add('reached');
+  } else {
+    const remaining = threshold - total;
+    const currency = cart[0]?.currency || 'EUR';
+    textEl.textContent = `${formatPrice(remaining, currency)} more for free shipping`;
+    bar.classList.remove('reached');
+  }
+}
+
+function initMobileMenu() {
+  const toggle = document.getElementById('mobileMenuToggle');
+  const overlay = document.getElementById('mobileNavOverlay');
+  const nav = document.getElementById('mobileNav');
+  const closeBtn = document.getElementById('mobileNavClose');
+  if (!toggle || !overlay || !nav) return;
+
+  function openMenu() {
+    nav.classList.add('open');
+    overlay.classList.add('open');
+    nav.setAttribute('aria-hidden', 'false');
+    toggle.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeMenu() {
+    nav.classList.remove('open');
+    overlay.classList.remove('open');
+    nav.setAttribute('aria-hidden', 'true');
+    toggle.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
+
+  toggle.addEventListener('click', openMenu);
+  if (closeBtn) closeBtn.addEventListener('click', closeMenu);
+  overlay.addEventListener('click', closeMenu);
+}
+
 function updateShippingDisplay() {
   const shippingRow = document.getElementById('shippingTotalRow');
   const grandTotalRow = document.getElementById('grandTotalRow');
@@ -922,8 +1004,8 @@ function updateShippingDisplay() {
 
   const checkoutBtn = document.getElementById('checkoutBtn');
   if (checkoutBtn) {
-    checkoutBtn.disabled = !selectedShippingOption || cart.length === 0;
-    checkoutBtn.textContent = selectedShippingOption ? 'Checkout →' : 'Select shipping first';
+    checkoutBtn.disabled = cart.length === 0;
+    checkoutBtn.textContent = 'Checkout →';
   }
 }
 
