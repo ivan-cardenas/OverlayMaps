@@ -1548,3 +1548,101 @@ mark {
 @media (max-width: 768px) {
   .hamburger-btn { display: flex; }
 }
+
+/* ═══ HERO VISUAL — topographic contour rings ═══ */
+.hero-visual {
+  position: absolute;
+  right: -4%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(54vw, 640px);
+  aspect-ratio: 1/1;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.map-lines {
+  width: 100%;
+  height: 100%;
+  background-image:
+    radial-gradient(circle, transparent 10%, var(--accent)   10.2%, transparent 10.4%),
+    radial-gradient(circle, transparent 22%, var(--border)   22.2%, transparent 22.4%),
+    radial-gradient(circle, transparent 34%, var(--border)   34.2%, transparent 34.4%),
+    radial-gradient(circle, transparent 46%, var(--accent)   46.2%, transparent 46.4%),
+    radial-gradient(circle, transparent 58%, var(--border)   58.2%, transparent 58.4%),
+    radial-gradient(circle, transparent 70%, var(--border)   70.2%, transparent 70.4%),
+    radial-gradient(circle, transparent 82%, var(--accent)   82.2%, transparent 82.4%),
+    radial-gradient(circle, transparent 94%, var(--border)   94.2%, transparent 94.4%);
+  mask-image: radial-gradient(ellipse 78% 78% at 50% 50%, black 20%, transparent 68%);
+  -webkit-mask-image: radial-gradient(ellipse 78% 78% at 50% 50%, black 20%, transparent 68%);
+  opacity: 0.2;
+  animation: mapRotate 90s linear infinite;
+}
+
+@keyframes mapRotate {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .hero-visual { display: none; }
+}
+
+/* ═══ CARD ENTRANCE ANIMATION ═══ */
+@keyframes cardEnter {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.product-card[data-animate] {
+  animation: cardEnter 0.45s ease both;
+}
+
+.product-card:hover {
+  box-shadow: 0 16px 48px rgba(0,0,0,0.55);
+}
+
+/* ═══ SCROLL-TO-TOP BUTTON ═══ */
+.scroll-top-btn {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 44px;
+  height: 44px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 50%;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 89;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.3s ease, transform 0.3s ease, border-color var(--transition), color var(--transition), background var(--transition);
+  pointer-events: none;
+}
+
+.scroll-top-btn.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.scroll-top-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--surface);
+}
+
+/* ═══ STICKY CATALOG FILTER BAR ═══ */
+.catalog-header {
+  position: sticky;
+  top: 60px;
+  z-index: 90;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}

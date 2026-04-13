@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchProducts();
   initShippingEstimator();
   initMobileMenu();
+  initScrollTop();
 
   if (new URLSearchParams(location.search).get('canceled')) {
     showToast('Checkout canceled — your cart is still saved.');
@@ -188,12 +189,12 @@ function renderPage() {
     return;
   }
 
-  grid.innerHTML = pageItems.map(p => {
+  grid.innerHTML = pageItems.map((p, idx) => {
     const thumb = THUMBNAIL_OVERRIDES[p.id] || p.thumbnail || '';
-    const backImg = p.images?.find(i => i.type === 'back');
+    const backImg = p.images?.find(img => img.type === 'back');
     const backUrl = backImg?.url || '';
     return `
-    <article class="product-card${backUrl ? ' has-back' : ''}" data-id="${p.id}" tabindex="0" role="button" aria-label="${p.name}">
+    <article class="product-card${backUrl ? ' has-back' : ''}" data-id="${p.id}" data-animate tabindex="0" role="button" aria-label="${p.name}" style="animation-delay:${idx * 0.04}s">
       <div class="product-card-img">
         <img class="card-img-front" src="${thumb}" alt="${p.name}" loading="lazy" onerror="this.style.display='none'" />
         ${backUrl ? `<img class="card-img-back" src="${backUrl}" alt="${p.name} back" loading="lazy" />` : ''}
@@ -1020,6 +1021,17 @@ function slugify(name) {
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .substring(0, 80);
+}
+
+function initScrollTop() {
+  const btn = document.getElementById('scrollTopBtn');
+  if (!btn) return;
+  window.addEventListener('scroll', () => {
+    btn.classList.toggle('visible', window.scrollY > 400);
+  }, { passive: true });
+  btn.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 }
 
 function populateNavDropdown(products) {
