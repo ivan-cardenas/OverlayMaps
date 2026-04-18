@@ -143,7 +143,7 @@ function generateProductPage(product, allProducts) {
   <!-- Styles -->
   <link rel="stylesheet" href="/css/store.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>

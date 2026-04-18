@@ -194,7 +194,7 @@ function renderPage() {
     const backImg = p.images?.find(img => img.type === 'back');
     const backUrl = backImg?.url || '';
     return `
-    <article class="product-card${backUrl ? ' has-back' : ''}" data-id="${p.id}" data-animate tabindex="0" role="button" aria-label="${p.name}" style="animation-delay:${idx * 0.04}s">
+    <article class="product-card${backUrl ? ' has-back' : ''}" data-id="${p.id}" data-category="${p.category || ''}" data-animate tabindex="0" role="button" aria-label="${p.name}" style="animation-delay:${idx * 0.04}s">
       <div class="product-card-img">
         <img class="card-img-front" src="${thumb}" alt="${p.name}" loading="lazy" onerror="this.style.display='none'" />
         ${backUrl ? `<img class="card-img-back" src="${backUrl}" alt="${p.name} back" loading="lazy" />` : ''}
